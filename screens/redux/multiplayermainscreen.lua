@@ -180,6 +180,13 @@ local function MakeYOTCBanner(self, banner_root, anim)
     end
 end
 
+local function MakeYOTDBanner(self, banner_root, anim)
+    anim:GetAnimState():SetBuild("dst_menu_yotd")
+    anim:GetAnimState():SetBank ("dst_menu_yotd")
+    anim:SetScale(.667)
+    anim:GetAnimState():PlayAnimation("loop", true)
+end
+
 local function MakeYOTCatcoonBanner(self, banner_root, anim)
     anim:GetAnimState():SetBuild("dst_menu_yot_catcoon")
     anim:GetAnimState():SetBank ("dst_menu_yot_catcoon")
@@ -443,7 +450,9 @@ function MakeBanner(self)
 		--
 		--REMINDER: Check MakeBannerFront as well!
 		--
-        MakeMeta3Banner(self, banner_root, anim)
+        MakeYOTDBanner(self, banner_root, anim)
+    elseif IsSpecialEventActive(SPECIAL_EVENTS.YOTD) then
+        MakeYOTDBanner(self, banner_root, anim)
     elseif IsSpecialEventActive(SPECIAL_EVENTS.YOTR) then
         MakeYOTRBanner(self, banner_root, anim)
 	elseif IsSpecialEventActive(SPECIAL_EVENTS.YOTC) then
@@ -678,8 +687,8 @@ function MultiplayerMainScreen:DoInit()
 	-- new MOTD
 
     local kit_puppet_positions = {
-        { x = 90.0, y = 20.0, scale = 0.75 },
-        { x = 390.0, y = 20.0, scale = 0.75 },
+        { x = 90.0, y = -25.0, scale = 0.75 },
+        { x = 390.0, y = -25.0, scale = 0.75 },
     }
     self.kit_puppet = self.fixed_root:AddChild(KitcoonPuppet( Profile, nil, kit_puppet_positions ))
 

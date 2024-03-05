@@ -1087,6 +1087,7 @@ PREFAB_SKINS = {
 	shovel =
 	{
 		"shovel_feathered",
+		"shovel_heart",
 		"shovel_invisible",
 		"shovel_northern",
 		"shovel_victorian",
@@ -1175,6 +1176,7 @@ PREFAB_SKINS = {
 	},
 	tent =
 	{
+		"tent_an",
 		"tent_ancient",
 		"tent_beach",
 		"tent_circus",
@@ -1352,6 +1354,7 @@ PREFAB_SKINS = {
 		"wanda_formal",
 		"wanda_ice",
 		"wanda_lunar",
+		"wanda_masquerade",
 		"wanda_nature",
 		"wanda_none",
 		"wanda_shadow",
@@ -1408,6 +1411,7 @@ PREFAB_SKINS = {
 		"wathgrithr_ice",
 		"wathgrithr_lunar",
 		"wathgrithr_magma",
+		"wathgrithr_masquerade",
 		"wathgrithr_nature",
 		"wathgrithr_none",
 		"wathgrithr_pirate",
@@ -1448,6 +1452,7 @@ PREFAB_SKINS = {
 		"waxwell_krampus_p",
 		"waxwell_lunar",
 		"waxwell_magma",
+		"waxwell_masquerade",
 		"waxwell_nature",
 		"waxwell_none",
 		"waxwell_rose",
@@ -1629,6 +1634,7 @@ PREFAB_SKINS = {
 		"wilson_lunar",
 		"wilson_madscience",
 		"wilson_magma",
+		"wilson_masquerade",
 		"wilson_nature",
 		"wilson_none",
 		"wilson_pigguard",
@@ -1652,6 +1658,7 @@ PREFAB_SKINS = {
 		"wilson_beard_lunar",
 		"wilson_beard_madscience",
 		"wilson_beard_magma",
+		"wilson_beard_masquerade",
 		"wilson_beard_nature",
 		"wilson_beard_pigguard",
 		"wilson_beard_rose",
@@ -1838,6 +1845,7 @@ PREFAB_SKINS = {
 		"wurt_cave",
 		"wurt_formal",
 		"wurt_ice",
+		"wurt_masquerade",
 		"wurt_nature",
 		"wurt_none",
 		"wurt_pirate",
