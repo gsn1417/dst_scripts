@@ -474,8 +474,11 @@ function CanEntitySeeTarget(inst, target)
     return CanEntitySeePoint(inst, x, y, z)
 end
 
-function SpringCombatMod(amount)
+function SpringCombatMod(amount) -- NOTES(JBK): This is an amplification modifier to increase damage.
     return TheWorld.state.isspring and amount * TUNING.SPRING_COMBAT_MOD or amount
+end
+function SpringGrowthMod(amount) -- NOTES(JBK): This is a reduction modifier to reduce timer durations.
+    return TheWorld.state.isspring and amount * TUNING.SPRING_GROWTH_MODIFIER or amount
 end
 
 function TemporarilyRemovePhysics(obj, time)
@@ -613,6 +616,31 @@ function GetInventoryItemAtlas(imagename, no_fallback)
 	if atlas ~= nil then
 		inventoryItemAtlasLookup[imagename] = atlas
 	end
+	return atlas
+end
+
+----------------------------------------------------------------------------------------------
+function GetMinimapAtlas_Internal(imagename)
+    local images1 = "minimap/minimap_data1.xml"
+    local images2 = "minimap/minimap_data2.xml"
+    return TheSim:AtlasContains(images1, imagename) and images1
+            or TheSim:AtlasContains(images2, imagename) and images2
+            or nil
+end
+
+local minimapAtlasLookup = {}
+function GetMinimapAtlas(imagename)
+	local atlas = minimapAtlasLookup[imagename]
+	if atlas then
+		return atlas
+	end
+
+    atlas = GetMinimapAtlas_Internal(imagename)
+
+	if atlas ~= nil then
+		minimapAtlasLookup[imagename] = atlas
+	end
+
 	return atlas
 end
 

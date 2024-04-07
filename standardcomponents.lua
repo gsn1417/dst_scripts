@@ -1,3 +1,5 @@
+local WAXED_PLANTS = require "prefabs/waxed_plant_common"
+
 local DEBUG_MODE = BRANCH == "dev"
 
 function DefaultIgniteFn(inst)
@@ -33,7 +35,7 @@ function DefaultBurntFn(inst)
         ash.Transform:SetPosition(inst.Transform:GetWorldPosition())
 
         if inst.components.stackable ~= nil then
-            ash.components.stackable.stacksize = math.min(ash.components.stackable.maxsize, inst.components.stackable.stacksize)
+			ash.components.stackable:SetStackSize(math.min(ash.components.stackable.maxsize, inst.components.stackable.stacksize))
         end
     end
 
@@ -529,6 +531,24 @@ function ChangeToCharacterPhysics(inst, mass, rad)
     return phys
 end
 
+function ChangeToGiantCharacterPhysics(inst, mass, rad)
+	local phys = inst.Physics
+	if mass then
+		phys:SetMass(mass)
+		phys:SetFriction(0)
+		phys:SetDamping(5)
+	end
+	phys:SetCollisionGroup(COLLISION.GIANTS)
+	phys:ClearCollisionMask()
+	phys:CollidesWith(COLLISION.WORLD)
+	phys:CollidesWith(COLLISION.OBSTACLES)
+	phys:CollidesWith(COLLISION.CHARACTERS)
+	phys:CollidesWith(COLLISION.GIANTS)
+	if rad then
+		phys:SetCapsule(rad, 1)
+	end
+end
+
 function ChangeToObstaclePhysics(inst, rad, height)
     local phys = inst.Physics
     phys:SetCollisionGroup(COLLISION.OBSTACLES)
@@ -698,6 +718,7 @@ function MakeSnowCovered(inst)
     end
 end
 
+----------------------------------------------------------------------------------------
 local function oneat(inst)
     if inst.components.perishable ~= nil then
         inst.components.perishable:SetPercent(1)
@@ -707,24 +728,39 @@ end
 local function onperish(inst)
     local owner = inst.components.inventoryitem.owner
     if owner ~= nil then
-        inst.components.inventoryitem:RemoveFromOwner(true)
-
+		local loots
         local container = owner.components.inventory or owner.components.container or nil
         if container ~= nil and inst.components.lootdropper ~= nil then
             local stacksize = inst.components.stackable ~= nil and inst.components.stackable.stacksize or 1
             if inst.components.health ~= nil then
                 owner:PushEvent("murdered", { victim = inst, stackmult = stacksize, negligent = true }) -- NOTES(JBK): This is a special case event already adding onto it.
             end
+			loots = {}
+			local loots_stackable = {}
             for i = 1, stacksize do
-                local loots = inst.components.lootdropper:GenerateLoot()
-                for k, v in pairs(loots) do
-                    local loot = SpawnPrefab(v)
-                    container:GiveItem(loot)
+				for i, v in ipairs(inst.components.lootdropper:GenerateLoot()) do
+					local stackable = loots_stackable[v]
+					if stackable then
+						if stackable:IsFull() then
+							stackable:SetIgnoreMaxSize(true)
+						end
+						stackable:SetStackSize(stackable:StackSize() + 1)
+					else
+						local loot = SpawnPrefab(v)
+						loots_stackable[v] = loot.components.stackable
+						table.insert(loots, loot)
+					end
                 end
             end
         end
 
         inst:Remove()
+
+		if loots then
+			for i, v in ipairs(loots) do
+				container:GiveItem(v)
+			end
+		end
     end
 end
 
@@ -1601,3 +1637,9 @@ function MakeForgeRepairable(inst, material, onbroken, onrepaired)
 end
 
 --------------------------------------------------------------------------
+
+function MakeWaxablePlant(inst)
+    local waxable = inst:AddComponent("waxable")
+    waxable:SetWaxfn(WAXED_PLANTS.WaxPlant)
+    waxable:SetNeedsSpray()
+end

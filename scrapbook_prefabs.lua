@@ -1,6 +1,5 @@
 local PREFABS =
 {
-
     --["statue_marble"] = true,
     ["statue_marble_muse"] = true,
     ["statue_marble_pawn"] = true,
@@ -646,6 +645,7 @@ local PREFABS =
     ["wx78_scanner_item"] = true,
     ["turf_archive"] = true,
     ["red_mushroomhat"] = true,
+    ["moon_mushroomhat"] = true,
     ["winter_ornament_boss_krampus"] = true,
     ["wx78module_bee"] = true,
     ["sewing_kit"] = true,
@@ -1694,6 +1694,23 @@ local PREFABS =
     ["winter_ornament_boss_mutateddeerclops"] = true,
     ["winter_ornament_boss_mutatedbearger"] = true,
     ["winter_ornament_boss_mutatedwarg"] = true,
+
+    -- Rifts / Meta QoL
+
+    ["beeswax_spray"] = true,
+    ["chestupgrade_stacksize"] = true,
+    ["daywalker2"] = true,
+    ["fence_junk"] = true,
+    ["healingsalve_acid"] = true,
+    ["junk_pile_big"] = true,
+    ["junk_pile"] = true,
+    ["storage_robot"] = true,
+    ["wall_scrap_item"] = true,
+    ["wall_scrap"] = true,
+    ["skeleton_notplayer"] = true,
+    ["scrap_monoclehat"] = true,
+    ["scraphat"] = true,
+    ["armor_lunarplant_husk"] = true,
 
     --[[POI]]
     ["charlie_stage_post"] = true,

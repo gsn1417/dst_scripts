@@ -144,6 +144,18 @@ function InventoryItem:AddMoisture(delta)
     end
 end
 
+function InventoryItem:MakeMoistureAtLeast(min)
+	if self.inst.components.inventoryitemmoisture ~= nil then
+		self.inst.components.inventoryitemmoisture:MakeMoistureAtLeast(min)
+	end
+end
+
+function InventoryItem:DryMoisture()
+    if self.inst.components.inventoryitemmoisture ~= nil then
+        self.inst.components.inventoryitemmoisture:SetMoisture(0)
+    end
+end
+
 function InventoryItem:SetOwner(owner)
     self.owner = owner
 end
@@ -332,18 +344,29 @@ function InventoryItem:ChangeImageName(newname)
     self.inst:PushEvent("imagechange")
 end
 
-function InventoryItem:RemoveFromOwner(wholestack)
+function InventoryItem:RemoveFromOwner(wholestack, keepoverstacked)
     if self.owner == nil then
         return
     elseif self.owner.components.inventory ~= nil then
-        return self.owner.components.inventory:RemoveItem(self.inst, wholestack)
+		return self.owner.components.inventory:RemoveItem(self.inst, wholestack, nil, keepoverstacked)
     elseif self.owner.components.container ~= nil then
-        return self.owner.components.container:RemoveItem(self.inst, wholestack)
+		return self.owner.components.container:RemoveItem(self.inst, wholestack, nil, keepoverstacked)
     end
 end
 
 function InventoryItem:OnRemoveEntity()
-    self:RemoveFromOwner(true)
+	if self.owner then
+		if self.owner.components.inventory then
+			self.owner.components.inventory:RemoveItem(self.inst, true)
+		else
+			local container = self.owner.components.container
+			if container then
+				container.ignoreoverstacked = true
+				container:RemoveItem(self.inst, true)
+				container.ignoreoverstacked = false
+			end
+		end
+	end
     TheWorld:PushEvent("forgetinventoryitem", self.inst)
 end
 
