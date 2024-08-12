@@ -781,7 +781,7 @@ SPECIAL_EVENTS =
     YOTR = "year_of_the_bunnyman",
     YOTD = "year_of_the_dragonfly",
 }
-WORLD_SPECIAL_EVENT = SPECIAL_EVENTS.NONE
+WORLD_SPECIAL_EVENT = SPECIAL_EVENTS.CARNIVAL
 --WORLD_SPECIAL_EVENT = IS_BETA and SPECIAL_EVENTS.NONE or SPECIAL_EVENTS.YOTR
 WORLD_EXTRA_EVENTS = {}
 
@@ -1994,70 +1994,18 @@ TECH_INGREDIENT =
     SCULPTING = "sculpting_material",
 }
 
--- Identifies which builder tags are from which characters' skill trees,
--- so that the crafting menu properly identifies that they're locked behind a skill
--- for your current character.
-TECH_SKILLTREE_BUILDER_TAG_OWNERS =
+-- NOTES(DiogoW): Now DEPRECATED, keeping it around for mods.
+    -- Identifies which builder tags are from which characters' skill trees,
+    -- so that the crafting menu properly identifies that they're locked behind a skill
+    -- for your current character.
+TECH_SKILLTREE_BUILDER_TAG_OWNERS = {}
+
+SKILLTREE_EQUIPPABLE_RESTRICTED_TAGS = 
 {
-    alchemist = "wilson",
-    gem_alchemistI = "wilson",
-    gem_alchemistII = "wilson",
-    gem_alchemistIII = "wilson",
-    ick_alchemistI = "wilson",
-    ick_alchemistII = "wilson",
-    ick_alchemistIII = "wilson",
-    ore_alchemistI = "wilson",
-    ore_alchemistII = "wilson",
-    ore_alchemistIII = "wilson",
-    skill_wilson_allegiance_lunar = "wilson",
-    skill_wilson_allegiance_shadow = "wilson",
-
-    wolfgang_coach = "wolfgang",
-    wolfgang_dumbbell_crafting = "wolfgang",
-
-    leifidolcrafter = "woodie",
-    woodcarver1 = "woodie",
-    woodcarver2 = "woodie",
-    woodcarver3 = "woodie",
-
-    berrybushcrafter = "wormwood",
-    carratcrafter = "wormwood",
-    fruitdragoncrafter = "wormwood",
-    juicyberrybushcrafter = "wormwood",
-    lightfliercrafter = "wormwood",
-    lunarplant_husk_crafter = "wormwood",
-    lureplantcrafter = "wormwood",
-    reedscrafter = "wormwood",
-    saplingcrafter = "wormwood",
-    syrupcrafter = "wormwood",
-
-    battlesongcontainermaker = "wathgrithr",
-    battlesonginstantrevivemaker = "wathgrithr",
-    battlesonglunaralignedmaker = "wathgrithr",
-    battlesongshadowalignedmaker = "wathgrithr",
-    saddlewathgrithrmaker = "wathgrithr",
-    spearwathgrithrlightningmaker = "wathgrithr",
-    wathgrithrimprovedhatmaker = "wathgrithr",
-    wathgrithrshieldmaker = "wathgrithr",
+    -- Using quotes for searching purposes.
+    ["inspectacleshatuser"]  = "winona",
+    ["wathgrithrshielduser"] = "wathgrithr",
     [UPGRADETYPES.SPEAR_LIGHTNING.."_upgradeuser"] = "wathgrithr",
-
-    fire_mastery_1 = "willow",
-
-    charliet1maker = "winona",
-    portableengineer = "winona",
-    wagstafft1maker = "winona",
-    wagstafft2maker = "winona",
-
-    merm_swampmaster_offeringpot = "wurt",
-    merm_swampmaster_offeringpot_upgraded = "wurt",
-    merm_swampmaster_mermtoolshed = "wurt",
-    merm_swampmaster_mermtoolshed_upgraded = "wurt",
-    merm_swampmaster_mermarmory = "wurt",
-    merm_swampmaster_mermarmory_upgraded = "wurt",
-    mosquitocraft_1 = "wurt",
-    mosquitocraft_2 = "wurt",
-    [SPELLTYPES.LUNAR_SWAMP_BOMB.."_spelluser"] = "wurt",
-    [SPELLTYPES.SHADOW_SWAMP_BOMB.."_spelluser"] = "wurt",
 }
 
 -- IngredientMod must be one of the following values
