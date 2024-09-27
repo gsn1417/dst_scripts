@@ -769,7 +769,7 @@ end
 --------------------------------------------------------------------------
 
 local function ChangeToItem(inst)
-	local item = SpawnPrefab("winona_spotlight_item")
+	local item = SpawnPrefab("winona_spotlight_item", inst:GetSkinBuild(), inst.skin_id)
 	item.Transform:SetPosition(inst.Transform:GetWorldPosition())
 	item.AnimState:PlayAnimation("collapse")
 	item.AnimState:PushAnimation("idle_ground", false)
@@ -921,6 +921,10 @@ local function OnConnectCircuit(inst)--, node)
     if not inst._wired then
         inst._wired = true
         inst.AnimState:ClearOverrideSymbol("wire")
+        local skin_build = inst:GetSkinBuild()
+        if skin_build ~= nil then
+            inst.AnimState:OverrideItemSkinSymbol("wire", skin_build, "wire", inst.GUID, "winona_spotlight")
+        end
         if not POPULATING then
             DoWireSparks(inst)
         end
@@ -1310,7 +1314,7 @@ end
 --------------------------------------------------------------------------
 
 local function OnDeploy(inst, pt, deployer)
-	local obj = SpawnPrefab("winona_spotlight")
+	local obj = SpawnPrefab("winona_spotlight", inst:GetSkinBuild(), inst.skin_id)
 	if obj then
 		obj.Physics:SetCollides(false)
 		obj.Physics:Teleport(pt.x, 0, pt.z)

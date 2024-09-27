@@ -229,9 +229,11 @@ local COMPONENT_ACTIONS =
             end
         end,
 
-        burnable = function(inst, doer, actions)
+        burnable = function(inst, doer, actions, right)
             if inst:HasTag("smolder") then
                 table.insert(actions, ACTIONS.SMOTHER)
+            elseif right and doer:HasTag("controlled_burner") and inst:HasTag("stokeablefire") then
+                table.insert(actions, ACTIONS.STOKEFIRE)
             end
         end,
 
@@ -358,19 +360,8 @@ local COMPONENT_ACTIONS =
         end,
 
         grabbable = function(inst, doer, actions, right)
-            if not right then
-                return
-            end
-
-            -- NOTES(DiogoW): Please refactor this if more cases are added, spellcaster types is a good example.
-            if inst:HasTag("mosquito") and
-                doer.components.skilltreeupdater ~= nil and
-                doer.components.skilltreeupdater:IsActivated("wurt_mosquito_craft_3") and
-                doer.replica.inventory ~= nil and
-                doer.replica.inventory:HasItemWithTag("mosquitomusk", 1)
-            then
-                table.insert(actions, ACTIONS.NET)
-            end
+            -- NOTES(JBK): Deprecated component.
+            -- Use inventoryitem.grabbableoverridetag instead.
         end,
 
         groomer = function(inst, doer, actions, right)
@@ -434,7 +425,7 @@ local COMPONENT_ACTIONS =
         end,
 
         inventoryitem = function(inst, doer, actions, right)
-            if inst.replica.inventoryitem:CanBePickedUp() and
+            if inst.replica.inventoryitem:CanBePickedUp(doer) and
                 doer.replica.inventory ~= nil and
                 (doer.replica.inventory:GetNumSlots() > 0 or inst.replica.equippable ~= nil) and
 				not (inst:HasTag("catchable") or (inst:HasTag("fire") and not inst:HasTag("lighter")) or inst:HasTag("smolder")) and
@@ -925,6 +916,12 @@ local COMPONENT_ACTIONS =
             end
         end,
 
+		bottler = function(inst, doer, target, actions)
+			if target:HasTag("canbebottled") then
+				table.insert(actions, ACTIONS.BOTTLE)
+			end
+		end,
+
         brush = function(inst, doer, target, actions, right)
             if not right and target:HasTag("brushable") then
                 table.insert(actions, ACTIONS.BRUSH)
@@ -965,7 +962,7 @@ local COMPONENT_ACTIONS =
                 local inventoryitem = target.replica.inventoryitem
                 if not (doer.replica.rider ~= nil and doer.replica.rider:IsRiding() and
                         not (inventoryitem ~= nil and inventoryitem:IsGrandOwner(doer))) and
-                    (inventoryitem == nil or inventoryitem:IsHeld() or inventoryitem:CanBePickedUp()) then
+                    (inventoryitem == nil or inventoryitem:IsHeld() or inventoryitem:CanBePickedUp(doer)) then
                     table.insert(actions, ACTIONS.COOK)
                 end
             end
@@ -1902,7 +1899,7 @@ local COMPONENT_ACTIONS =
                 local inventoryitem = target.replica.inventoryitem
                 if not (doer.replica.rider ~= nil and doer.replica.rider:IsRiding() and
                         not (inventoryitem ~= nil and inventoryitem:IsGrandOwner(doer))) and
-                    (inventoryitem == nil or inventoryitem:IsHeld() or inventoryitem:CanBePickedUp()) then
+                    (inventoryitem == nil or inventoryitem:IsHeld() or inventoryitem:CanBePickedUp(doer)) then
                     table.insert(actions, ACTIONS.COOK)
                 end
             end
