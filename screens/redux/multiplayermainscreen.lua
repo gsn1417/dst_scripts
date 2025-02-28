@@ -36,7 +36,7 @@ local KitcoonPuppet = require "widgets/kitcoonpuppet"
 local SHOW_DST_DEBUG_HOST_JOIN = BRANCH == "dev"
 local SHOW_QUICKJOIN = false
 
-local IS_BETA = BRANCH == "staging" or BRANCH == "dev"
+local IS_BETA = BRANCH == "staging"-- or BRANCH == "dev"
 local IS_DEV_BUILD = BRANCH == "dev"
 
 local function PlayBannerSound(inst, self, sound)
@@ -184,6 +184,14 @@ local function MakeYOTDBanner(self, banner_root, anim)
     anim:GetAnimState():SetBuild("dst_menu_yotd")
     anim:GetAnimState():SetBank ("dst_menu_yotd")
     anim:SetScale(.667)
+    anim:GetAnimState():PlayAnimation("loop", true)
+end
+
+
+local function MakeYOTSBanner(self, banner_root, anim)
+    anim:GetAnimState():SetBuild("dst_menu_yots")
+    anim:GetAnimState():SetBank ("dst_menu_yots")
+    anim:SetScale(.667/2)
     anim:GetAnimState():PlayAnimation("loop", true)
 end
 
@@ -420,6 +428,31 @@ local function MakeRift4Banner(self, banner_root, anim)
     anim:SetScale(.667)
 end
 
+local function MakeHallowedNights2024Banner(self, banner_root, anim)
+    anim:GetAnimState():SetBuild("dst_menu_halloween3")
+    anim:GetAnimState():SetBank("dst_menu_halloween3")
+    anim:GetAnimState():PlayAnimation("loop", true)
+    anim:SetScale(.667)
+end
+
+local function MakeWintersFeast2024Banner(self, banner_root, anim)
+    anim:GetAnimState():SetBuild("dst_menu_winter2024")
+    anim:GetAnimState():SetBank("dst_menu_winter2024")
+    anim:GetAnimState():PlayAnimation("loop", true)
+    anim:SetScale(.667)
+end
+
+local function MakeMeta5Banner(self, banner_root, anim)
+    anim:GetAnimState():SetBuild("dst_menu_meta5")
+    anim:GetAnimState():SetBank("dst_menu_meta5")
+    anim:GetAnimState():PlayAnimation("loop", true)
+    anim:SetScale(.667)
+    anim:SetPosition(75, 50)
+
+    if not IsSpecialEventActive(SPECIAL_EVENTS.WINTERS_FEAST) then
+        anim:GetAnimState():Hide("winter")
+    end
+end
 
 local function MakeDefaultBanner(self, banner_root, anim)
 	local banner_height = 350
@@ -476,8 +509,10 @@ function MakeBanner(self)
 		--
 		--REMINDER: Check MakeBannerFront as well!
 		--
-        MakeRift4Banner(self, banner_root, anim)
-        --MakeWurtWinonaQOLBanner(self, banner_root, anim)
+        MakeMeta5Banner(self, banner_root, anim)
+        
+    elseif IsSpecialEventActive(SPECIAL_EVENTS.YOTS) then
+        MakeYOTSBanner(self, banner_root, anim)        
     elseif IsSpecialEventActive(SPECIAL_EVENTS.YOTD) then
         MakeYOTDBanner(self, banner_root, anim)
     elseif IsSpecialEventActive(SPECIAL_EVENTS.YOTR) then
@@ -486,20 +521,17 @@ function MakeBanner(self)
         MakeYOTCBanner(self, banner_root, anim)
 	elseif IsSpecialEventActive(SPECIAL_EVENTS.YOT_CATCOON) then
         MakeYOTCatcoonBanner(self, banner_root, anim)
+	elseif IsSpecialEventActive(SPECIAL_EVENTS.WINTERS_FEAST) then
+        MakeWintersFeast2024Banner(self, banner_root, anim)
 	elseif IsSpecialEventActive(SPECIAL_EVENTS.HALLOWED_NIGHTS) then
-		--MakeDramaBanner(self, banner_root, anim)
-        --MakeHallowedNightsBanner(self, banner_root, anim)
-        MakeMeta3Banner(self, banner_root, anim)
+        MakeHallowedNights2024Banner(self, banner_root, anim)
 	elseif IsSpecialEventActive(SPECIAL_EVENTS.CARNIVAL) then
-
-        --MakeMeta2Banner(self, banner_root, anim)
-        --MakeCawnivalBanner(self, banner_root, anim)
         MakeWurtWinonaQOLBanner(self, banner_root, anim)
 	else
 		--*** !!! ***
 		--REMINDER: Check MakeBannerFront as well!
 		--
-        MakeRift4Banner(self, banner_root, anim)
+        MakeMeta5Banner(self, banner_root, anim)
         --MakeWurtWinonaQOLBanner(self, banner_root, anim)
         --MakeRiftsMetaQoLBanner(self, banner_root, anim)
 		--MakeMeta2Banner(self, banner_root, anim)
@@ -599,17 +631,17 @@ local function MakeBannerFront(self)
     elseif IsSpecialEventActive(SPECIAL_EVENTS.YOT_CATCOON) then
         return nil
     elseif IsSpecialEventActive(SPECIAL_EVENTS.HALLOWED_NIGHTS) then
-        local banner_front = Widget("banner_front")
+        --[[ local banner_front = Widget("banner_front")
         banner_front:SetPosition(0, 0)
         banner_front:SetClickable(false)
         local anim = banner_front:AddChild(UIAnim())
 
         MakeDramaBannerFront(self, banner_front, anim)
 
-        return banner_front
+        return banner_front ]]
+        return nil
 
     elseif IsSpecialEventActive(SPECIAL_EVENTS.CARNIVAL) then
-
         local banner_front = Widget("banner_front")
         banner_front:SetPosition(0, 0)
         banner_front:SetClickable(false)

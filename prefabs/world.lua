@@ -50,8 +50,16 @@ local assets =
 
     Asset("ANIM", "anim/poi_marker.zip"),
     Asset("ANIM", "anim/poi_stand.zip"),    
-}
 
+	Asset("DYNAMIC_ATLAS", "images/pumpkin_carving.xml"),
+	Asset("PKGREF", "images/pumpkin_carving.tex"),
+
+	Asset("DYNAMIC_ATLAS", "images/pumpkin_carving2.xml"),
+	Asset("PKGREF", "images/pumpkin_carving2.tex"),
+
+	Asset("DYNAMIC_ATLAS", "images/snowman.xml"),
+	Asset("PKGREF", "images/snowman.tex"),
+}
 
 for k, v in pairs(GroundTiles.assets) do
     table.insert(assets, v)
@@ -262,6 +270,8 @@ local prefabs =
 
 	-- vinebridgemanager
 	"vine_bridge_fx",
+
+    "snowball_item",
 }
 
 for _, v in pairs(require("prefabs/farm_plant_defs").PLANT_DEFS) do

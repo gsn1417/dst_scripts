@@ -262,6 +262,47 @@ function d_oceanarena()
     sharkboimanager:FindAndPlaceOceanArenaOverTime()
 end
 
+local function d_exploreX(filterfn, precision)
+    precision = math.floor(precision or 5)
+    local player = ConsoleCommandPlayer()
+    if not player then
+        c_announce("Not playing as a character.")
+        return
+    end
+    local map = TheWorld.Map
+    local TileGroupManager = TileGroupManager
+    local w, h = map:GetSize()
+    for tx = 0, w, precision do
+        for ty = 0, h, precision do
+            local tile = map:GetTile(tx, ty)
+            if filterfn(tile, tx, ty) then
+                local x, y, z = map:GetTileCenterPoint(tx, ty)
+                player.player_classified.MapExplorer:RevealArea(x, 0, z)
+            end
+        end
+    end
+end
+function d_exploreland()
+    d_exploreX(function(tile, tx, ty)
+        return TileGroupManager:IsLandTile(tile)
+    end)
+end
+function d_exploreocean()
+    d_exploreX(function(tile, tx, ty)
+        return TileGroupManager:IsOceanTile(tile)
+    end)
+end
+function d_explore_printunseentiles()
+    local player = ConsoleCommandPlayer()
+    d_exploreX(function(tile, tx, ty)
+        if not TileGroupManager:IsInvalidTile(tile) and not TileGroupManager:IsOceanTile(tile) and not player:CanSeeTileOnMiniMap(tx, ty) then -- Same logic from engine with search tag [STMSTCC]
+            local x, y, z = TheWorld.Map:GetTileCenterPoint(tx, ty)
+            print("Unseen tile at", x, z)
+        end
+        return false
+    end, 1)
+end
+
 local TELEPORTBOAT_ITEM_MUST_TAGS = {"_inventoryitem",}
 local TELEPORTBOAT_ITEM_CANT_TAGS = {"FX", "NOCLICK", "DECOR", "INLIMBO",}
 local TELEPORTBOAT_BLOCKER_CANT_TAGS = {"FX", "NOCLICK", "DECOR", "INLIMBO", "_inventoryitem",}
@@ -360,6 +401,23 @@ function d_rabbitking(kind)
     end
 end
 
+function d_fullmoon()
+    if TheWorld.ismastersim then
+        TheWorld:PushEvent("ms_setmoonphase", {moonphase = "full", iswaxing = false})
+    end
+end
+
+function d_newmoon()
+    if TheWorld.ismastersim then
+        TheWorld:PushEvent("ms_setmoonphase", {moonphase = "new", iswaxing = true})
+    end
+end
+
+function d_unlockaffinities()
+    TheGenericKV:SetKV("fuelweaver_killed", "1")
+    TheGenericKV:SetKV("celestialchampion_killed", "1")
+end
+
 function d_resetskilltree()
     local player = ConsoleCommandPlayer()
 
@@ -370,8 +428,21 @@ function d_resetskilltree()
     local skilltreeupdater = player.components.skilltreeupdater
     local skilldefs = require("prefabs/skilltree_defs").SKILLTREE_DEFS[player.prefab]
     if skilldefs ~= nil then
-        for skill, data in pairs(skilldefs) do
-            skilltreeupdater:DeactivateSkill(skill)
+        local attempts = 50
+        while attempts > 0 do -- FIXME(JBK): This needs to be done in skilltreeupdater and carefully handled for server and client sync.
+            local keepgoing = false
+            for skill, data in pairs(skilldefs) do
+                if data.rpc_id then
+                    if skilltreeupdater:IsActivated(skill) then
+                        keepgoing = true
+                        skilltreeupdater:DeactivateSkill(skill)
+                    end
+                end
+            end
+            if not keepgoing then
+                break
+            end
+            attempts = attempts - 1
         end
     end
 
@@ -380,10 +451,6 @@ end
 
 function d_reloadskilltreedefs()
     require("prefabs/skilltree_defs").DEBUG_REBUILD()
-
-    if ThePlayer ~= nil and ThePlayer.HUD ~= nil then
-        ThePlayer.HUD:OpenPlayerInfoScreen()
-    end
 end
 
 function d_printskilltreestringsforcharacter(character)
@@ -1084,51 +1151,44 @@ local function _SpawnLayout_AddFn(prefab, points_x, points_y, current_pos_idx, e
     x = math.floor(x*100) / 100.0
     y = math.floor(y*100) / 100.0
 
-    local inst = SpawnPrefab(prefab)
+    prefab_data.x = x
+    prefab_data.z = y
 
-    if inst == nil then
-        --print(string.format("Prefab %s couldn't be spawned...", tostring(prefab)))
+    prefab_data.prefab = prefab
 
-        return
-    end
+    local ent = SpawnSaveRecord(prefab_data)
 
-    inst.Transform:SetPosition(x, 0, y)
+    ent:LoadPostPass(Ents, FunctionOrValue(prefab_data.data))
 
-    if prefab_data then
-        if prefab_data.data ~= nil then
-            local data = FunctionOrValue(prefab_data.data)
-
-            if data ~= nil then
-                -- Notes(DiogoW): not ideal, but it'll work for debugging purposes.
-                inst:SetPersistData(data, Ents)
-                inst:LoadPostPass(Ents, data)
-            end
-        end
-
-        if prefab_data.scenario ~= nil then
-            inst:AddComponent("scenariorunner")
-            inst.components.scenariorunner:SetScript(prefab_data.scenario)
-            inst.components.scenariorunner:Run()
-        end
+    if ent.components.scenariorunner ~= nil then
+        ent.components.scenariorunner:Run()
     end
 end
 
 local obj_layout = require("map/object_layout")
 
-function d_spawnlayout(name, offset)
-    offset = offset or 3
+function d_spawnlayout(name)
+    local layout  = obj_layout.LayoutForDefinition(name)
+    local map_width, map_height = TheWorld.Map:GetSize()
 
-	local map_width, map_height = TheWorld.Map:GetSize()
-	local entities = {}
+    local add_fn = {
+        fn = _SpawnLayout_AddFn,
+        args = {entitiesOut={}, width=map_width, height=map_height, rand_offset=false}
+    }
 
-	local add_fn = {
-		fn = _SpawnLayout_AddFn,
-		args = {entitiesOut=entities, width=map_width, height=map_height, rand_offset = false, debug_prefab_list=nil}
-	}
+    local offset = layout.ground ~= nil and (#layout.ground / 2) or 0
+    local size = layout.ground ~= nil and (#layout.ground * TILE_SCALE) or nil
 
-    local x, z = TheWorld.Map:GetTileCoordsAtPoint(ConsoleWorldPosition():Get())
+    local pos  = ConsoleWorldPosition()
+    local x, z = TheWorld.Map:GetTileCoordsAtPoint(pos:Get())
 
-	obj_layout.Place({math.floor(x) - offset, math.floor(z) - offset}, name, add_fn, nil, TheWorld.Map)
+    if size ~= nil then
+        for i, ent in ipairs(TheSim:FindEntities(pos.x, 0, pos.z, size, nil, { "player", "INLIMBO", "FX" })) do -- Not a square, but that's fine for now.
+            ent:Remove()
+        end
+    end
+
+    obj_layout.Place({x-offset, z-offset}, name, add_fn, nil, TheWorld.Map)
 end
 
 function d_allfish()
@@ -2134,6 +2194,10 @@ local function Scrapbook_DefineSubCategory(t)
         subcat = "weapon"
     elseif t:HasTag("spidermutator") then
         subcat = "mutator"
+    elseif t:HasTag("slingshotammo") then
+        subcat = "slingshotammo"
+    elseif t.slingshot_slot ~= nil then
+        subcat = "slingshotpart"
     elseif foodtype ~= nil and
         foodtype ~= FOODTYPE.GENERIC and foodtype ~= FOODTYPE.GOODIES and foodtype ~= FOODTYPE.MEAT and
         foodtype ~= FOODTYPE.VEGGIE and foodtype ~= FOODTYPE.HORRIBLE and foodtype ~= FOODTYPE.INSECT and
@@ -2203,6 +2267,8 @@ local SCRAPBOOK_NAME_LOOKUP =
     sketch = "sketch_scrapbook",
     tacklesketch = "tacklesketch_scrapbook",
     cookingrecipecard = "cookingrecipecard_scrapbook",
+
+	snowman = "snowball_large",
 }
 
 local function Scrapbook_DefineName(t)
@@ -2426,6 +2492,7 @@ local SKIP_SPECIALINFO_CHECK =
 local REPAIR_MATERIAL_DATA =
 {
     -- Repairers
+    carrot = { "carrot" },
     dreadstone = { "wall_dreadstone_item", "dreadstone" },
     fossil = { "fossil_piece" },
     gears = { "wall_scrap_item", "wagpunk_bits", "gears" },
@@ -2451,6 +2518,7 @@ local REPAIR_MATERIAL_DATA =
 
     -- Upgraders
     chest = { "chestupgrade_stacksize" },
+    gravestone = { "petals" },
     mast = { "mastupgrade_lamp_item", "mastupgrade_lightningrod_item" },
     spear_lightning = { "moonstorm_static_item" },
     spider = { "silk" },
@@ -2533,6 +2601,7 @@ local NOT_ALLOWED_RECIPE_TECH =
     [TechTree.Create(TECH.CATCOONOFFERING_THREE)] = true,
     [TechTree.Create(TECH.RABBITOFFERING_THREE)] = true,
     [TechTree.Create(TECH.DRAGONOFFERING_THREE)] = true,
+    [TechTree.Create(TECH.SNAKEOFFERING_THREE)] = true,
 
     [TechTree.Create(TECH.YOTG)] = true,
     [TechTree.Create(TECH.YOTV)] = true,
@@ -2542,9 +2611,10 @@ local NOT_ALLOWED_RECIPE_TECH =
     [TechTree.Create(TECH.YOT_CATCOON)] = true,
     [TechTree.Create(TECH.YOTR)] = true,
     [TechTree.Create(TECH.YOTD)] = true,
+    [TechTree.Create(TECH.YOTS)] = true,
 }
 
-function d_createscrapbookdata(print_missing_icons, noreset)
+function d_createscrapbookdata(print_missing_icons)
     if not TheWorld.state.isautumn or TheWorld.state.israining then
         -- Force the season (many entities change the build/animation during certain seasons).
         TheWorld:PushEvent("ms_setseason", "autumn")
@@ -3001,9 +3071,6 @@ function d_createscrapbookdata(print_missing_icons, noreset)
         if t.prefab == "smallghost" then
             AddInfo( "animoffsety",  60 )
         end
-        if t.prefab == "wx78_scanner_item" then
-            AddInfo( "animoffsety",  90 )
-        end
         if t.prefab == "eyeofterror_mini" then
             AddInfo( "animoffsety",  40 )
         end
@@ -3142,6 +3209,12 @@ function d_createscrapbookdata(print_missing_icons, noreset)
             AddInfo( "burnable", true )
         end
 
+        ---------------------------------::   SNOWMAN DECO   ::---------------------------------
+
+        if t.components.snowmandecor ~= nil then                    
+            AddInfo( "snowmandecor", true )
+        end
+
         -----------------------------::   OBSTACLE FLOATER   ::------------------------------
 
         local _floater = t.components.floater
@@ -3161,6 +3234,18 @@ function d_createscrapbookdata(print_missing_icons, noreset)
 
             if t.components.planardefense and t.components.planardefense.basedefense > 0 then
                 AddInfo( "armor_planardefense", t.components.planardefense.basedefense )
+            end
+        end
+
+        -----------------------------::   SLINGSHOT AMMO   ::--------------------------------
+
+        if t.ammo_def ~= nil then
+            if t.ammo_def.damage ~= nil and t.ammo_def.damage > 0 then
+                AddInfo( "weapondamage", t.ammo_def.damage )
+            end
+
+            if t.ammo_def.planar ~= nil and t.ammo_def.planar > 0 then
+                AddInfo( "planardamage", t.ammo_def.planar )
             end
         end
 
@@ -3413,12 +3498,13 @@ function d_createscrapbookdata(print_missing_icons, noreset)
     exporter_data_helper:write("}\n")
     exporter_data_helper:close()
 
-    print(prettyline)
+    d_unlockscrapbook()
 
-    if not print_missing_icons and not noreset then
-        d_unlockscrapbook()
-        c_reset()
-    end
+    ThePlayer.HUD:OpenScrapbookScreen()
+    ThePlayer.HUD.scrapbookscreen:DEBUG_REIMPORT_DATASET()
+    ThePlayer.HUD:OpenScrapbookScreen() -- Reopen to rebuild screen.
+
+    print(prettyline)
 end
 
 function d_unlockscrapbook()
@@ -3761,4 +3847,38 @@ function d_itemwithshadowmimic(item_prefab)
 
     local item = c_spawn(item_prefab)
     item:AddComponent("itemmimic")
+end
+
+function d_shadowparasite(host_prefab)
+    local host = c_spawn(host_prefab or "bunnyman")
+    local mask = SpawnPrefab("shadow_thrall_parasitehat")
+
+    host.components.inventory:GiveItem(mask)
+    host.components.inventory:Equip(mask)
+end
+
+function d_tweak_floater(size, offset, scale, swap_bank, float_index, swap_data)
+    local floater = c_select().components.floater
+
+    if size ~= nil then
+        floater:SetSize(size)
+    end
+
+    if offset then
+        floater:SetVerticalOffset(offset)
+    end
+
+    if scale then
+        floater:SetScale(scale)
+    end
+
+    if swap_bank then
+        floater:SetBankSwapOnFloat(swap_bank, float_index, swap_data)
+    elseif swap_data then
+        floater:SetSwapData(swap_data)
+    end
+
+    local scale = floater.xscale == floater.yscale and tostring(floater.xscale) or string.format('{ %s }', table.concat({floater.xscale, floater.yscale, floater.zscale}, ', '))
+
+    print(string.format('MakeInventoryFloatable(inst, "%s", %s, %s, %s, %s, swap_data)', floater.size, tostring(floater.vert_offset), scale, tostring(floater.do_bank_swap), tostring(floater.float_index ~= 1 and floater.float_index or nil)))
 end

@@ -1,6 +1,7 @@
 local BALLOONS = require "prefabs/balloons_common"
 
 local SPIDER_TAGS = {"spider"}
+local SHADOWTHRALL_PARASITE_RETARGET_CANT_TAGS = { "shadowthrall_parasite_hosted", "shadowthrall_parasite_mask" }
 
 ALL_HAT_PREFAB_NAMES = {}
 
@@ -190,6 +191,8 @@ local function MakeHat(name)
         inst.AnimState:PlayAnimation("anim")
 
         inst:AddTag("hat")
+
+		inst:AddComponent("snowmandecor")
 
         if custom_init ~= nil then
             custom_init(inst)
@@ -1280,13 +1283,17 @@ local function MakeHat(name)
     local function eyebrella_onequip(inst, owner)
         fns.opentop_onequip(inst, owner)
 
-        owner.DynamicShadow:SetSize(2.2, 1.4)
+		if owner.DynamicShadow then
+			owner.DynamicShadow:SetSize(2.2, 1.4)
+		end
     end
 
     local function eyebrella_onunequip(inst, owner)
         _onunequip(inst, owner)
 
-        owner.DynamicShadow:SetSize(1.3, 0.6)
+		if owner.DynamicShadow then
+			owner.DynamicShadow:SetSize(1.3, 0.6)
+		end
     end
 
     local function eyebrella_perish(inst)
@@ -1294,7 +1301,9 @@ local function MakeHat(name)
         if equippable ~= nil and equippable:IsEquipped() then
             local owner = inst.components.inventoryitem ~= nil and inst.components.inventoryitem.owner or nil
             if owner ~= nil then
-                owner.DynamicShadow:SetSize(1.3, 0.6)
+				if owner.DynamicShadow then
+					owner.DynamicShadow:SetSize(1.3, 0.6)
+				end
                 local data =
                 {
                     prefab = inst.prefab,
@@ -1522,6 +1531,38 @@ local function MakeHat(name)
         return inst
     end
 
+    fns.walter_refreshattunedskills = function(inst, owner)
+		if owner ~= nil and owner.components.skilltreeupdater ~= nil and owner.components.skilltreeupdater:IsActivated("walter_camp_walterhat") then
+            inst.components.waterproofer:SetEffectiveness(TUNING.WATERPROOFNESS_SMALLMED)
+            inst.components.insulator:SetInsulation(TUNING.INSULATION_MED)
+
+            if owner._sanity_damage_protection ~= nil then
+                owner._sanity_damage_protection:SetModifier(inst, TUNING.SKILLS.WALTER.WALTERHAT_IMPROVED_SANITY_DAMAGE_PROTECTION)
+            end
+		else
+            inst.components.waterproofer:SetEffectiveness(TUNING.WATERPROOFNESS_SMALL)
+            inst.components.insulator:SetInsulation(TUNING.INSULATION_SMALL)
+
+            if owner ~= nil and owner._sanity_damage_protection ~= nil then
+                owner._sanity_damage_protection:SetModifier(inst, TUNING.WALTERHAT_SANITY_DAMAGE_PROTECTION)
+            end
+		end
+	end
+
+	fns.walter_watchskillrefresh = function(inst, owner)
+		if inst._owner ~= nil then
+			inst:RemoveEventCallback("onactivateskill_server", inst._onskillrefresh, inst._owner)
+			inst:RemoveEventCallback("ondeactivateskill_server", inst._onskillrefresh, inst._owner)
+		end
+
+		inst._owner = owner
+
+		if owner ~= nil then
+			inst:ListenForEvent("onactivateskill_server", inst._onskillrefresh, owner)
+			inst:ListenForEvent("ondeactivateskill_server", inst._onskillrefresh, owner)
+		end
+	end
+
     local function walter_custom_init(inst)
         --waterproofer (from waterproofer component) added to pristine state for optimization
         inst:AddTag("waterproofer")
@@ -1529,9 +1570,13 @@ local function MakeHat(name)
 
     local function walter_onunequip(inst, owner)
         _onunequip(inst, owner)
+
 		if owner._sanity_damage_protection ~= nil then
 			owner._sanity_damage_protection:RemoveModifier(inst)
 		end
+
+        fns.walter_watchskillrefresh(inst, nil)
+		fns.walter_refreshattunedskills(inst, nil)
     end
 
     local function walter_onequip(inst, owner)
@@ -1570,6 +1615,9 @@ local function MakeHat(name)
 		if owner._sanity_damage_protection ~= nil then
 			owner._sanity_damage_protection:SetModifier(inst, TUNING.WALTERHAT_SANITY_DAMAGE_PROTECTION)
 		end
+
+        fns.walter_watchskillrefresh(inst, owner)
+		fns.walter_refreshattunedskills(inst, owner)
     end
 
     fns.walter = function()
@@ -1578,6 +1626,8 @@ local function MakeHat(name)
         if not TheWorld.ismastersim then
             return inst
         end
+
+        inst._onskillrefresh = function(owner) fns.walter_refreshattunedskills(inst, owner) end
 
         inst:AddComponent("waterproofer")
         inst.components.waterproofer:SetEffectiveness(TUNING.WATERPROOFNESS_SMALL)
@@ -1726,11 +1776,15 @@ local function MakeHat(name)
     end
 
     local function mole_turnon(owner)
-        owner.SoundEmitter:PlaySound("dontstarve_DLC001/common/moggles_on")
+		if owner.SoundEmitter then
+			owner.SoundEmitter:PlaySound("dontstarve_DLC001/common/moggles_on")
+		end
     end
 
     local function mole_turnoff(owner)
-        owner.SoundEmitter:PlaySound("dontstarve_DLC001/common/moggles_off")
+		if owner.SoundEmitter then
+			owner.SoundEmitter:PlaySound("dontstarve_DLC001/common/moggles_off")
+		end
     end
 
     local function mole_onequip(inst, owner)
@@ -2548,6 +2602,25 @@ local function MakeHat(name)
     end
 
     ------------------ MASKS
+
+    fns.mask_onequip = function(inst, owner)
+        if inst.prefab == "mask_sagehat" or 
+            inst.prefab == "mask_halfwithat" or 
+            inst.prefab == "mask_toadyhat" then
+            owner:AddTag("shadowthrall_parasite_mask")
+        end
+        fns.simple_onequip(inst, owner)
+    end
+
+    fns.mask_onunequip = function(inst, owner)
+        if inst.prefab == "mask_sagehat" or 
+            inst.prefab == "mask_halfwithat" or 
+            inst.prefab == "mask_toadyhat" then            
+            owner:RemoveTag("shadowthrall_parasite_mask")
+        end
+        _onunequip(inst, owner)
+    end
+
     fns.mask = function()
         local inst = simple()
 
@@ -2560,6 +2633,16 @@ local function MakeHat(name)
             return inst
         end
 
+        inst.components.equippable:SetOnEquip(fns.mask_onequip)
+        inst.components.equippable:SetOnUnequip(fns.mask_onunequip)
+
+        if name == "mask_halfwit" or
+           name == "mask_toady" or
+           name == "mask_sage" then
+            inst:AddComponent("armor")
+            inst.components.armor:InitCondition(TUNING.SHADOWTHRALL_PARASITE_MASK_ARMOR, TUNING.SHADOWTHRALL_PARASITE_MASK_ABSORPTION)
+        end
+
         inst:AddComponent("fuel")
         inst.components.fuel.fuelvalue = TUNING.SMALL_FUEL
 
@@ -2567,9 +2650,9 @@ local function MakeHat(name)
         MakeSmallPropagator(inst)
 
         return inst
-    end
+    end    
 
-    ---------------------- MONEY SMALL
+    ---------------------- MONKEY SMALL
     local function monkey_small_custom_init(inst)
         --waterproofer (from waterproofer component) added to pristine state for optimization
         inst:AddTag("waterproofer")
@@ -3406,6 +3489,8 @@ local function MakeHat(name)
 
 		--waterproofer (from waterproofer component) added to pristine state for optimization
 		inst:AddTag("waterproofer")
+
+		inst:RemoveComponent("snowmandecor")
 	end
 
 	fns.lunarplant = function()
@@ -3438,6 +3523,8 @@ local function MakeHat(name)
         setbonus:SetSetName(EQUIPMENTSETNAMES.LUNARPLANT)
         setbonus:SetOnEnabledFn(lunarplant_onsetbonus_enabled)
         setbonus:SetOnDisabledFn(lunarplant_onsetbonus_disabled)
+
+        require("prefabs/skilltree_defs").CUSTOM_FUNCTIONS.wortox.SetupLunarResists(inst)
 
 		MakeForgeRepairable(inst, FORGEMATERIALS.LUNARPLANT, lunarplant_onbroken, lunarplant_onrepaired)
 		MakeHauntableLaunch(inst)
@@ -3614,6 +3701,8 @@ local function MakeHat(name)
 
 		--shadowlevel (from shadowlevel component) added to pristine state for optimization
 		inst:AddTag("shadowlevel")
+
+		inst:RemoveComponent("snowmandecor")
 	end
 
     fns.voidcloth_onsetbonus_enabled = function(inst)
@@ -4697,6 +4786,76 @@ local function MakeHat(name)
 
     -----------------------------------------------------------------------------
 
+    fns.ghostflower_custom_init = function(inst)
+        inst:AddTag("show_spoilage")
+        inst:AddTag("open_top_hat")
+    end
+
+    fns.ghostflower_onequip = function(inst, owner)
+        fns.opentop_onequip(inst, owner)
+        owner:AddTag("ghost_ally")
+        inst:AddTag("elixir_drinker")
+    end
+
+    fns.ghostflower_onunequip = function(inst, owner)
+        _onunequip(inst, owner)
+        owner:RemoveTag("ghost_ally")
+        inst:RemoveTag("elixir_drinker")
+
+        local debuff = owner:GetDebuff("elixir_buff")
+        if debuff then
+            debuff.components.debuff:Stop()
+        end
+
+        if inst.components.rechargeable then 
+            inst.components.rechargeable:SetCharge(inst.components.rechargeable.total)
+        end
+    end    
+
+    fns.onghostflowerrecharge = function(inst)
+        if inst.components.rechargeable:IsCharged() then
+            local owner = inst.components.inventoryitem.owner 
+            if owner then
+                local debuff = owner:GetDebuff("elixir_buff")
+                if debuff and debuff.recharge then
+                    debuff:recharge()
+                end
+            end
+        end
+    end
+
+    fns.ghostflower = function()
+        local inst = simple(fns.ghostflower_custom_init)
+
+        inst.components.floater:SetSize("med")
+        inst.components.floater:SetScale(0.68)
+
+        if not TheWorld.ismastersim then
+            return inst
+        end
+
+        inst.components.equippable.dapperness = TUNING.DAPPERNESS_MED
+        inst.components.equippable:SetOnEquip(fns.ghostflower_onequip)
+        inst.components.equippable:SetOnUnequip(fns.ghostflower_onunequip)
+
+        inst:AddComponent("perishable")
+        inst.components.perishable:SetPerishTime(TUNING.PERISH_MED)
+        inst.components.perishable:StartPerishing()
+        inst.components.perishable:SetOnPerishFn(inst.Remove)
+
+        inst:AddComponent("forcecompostable")
+        inst.components.forcecompostable.green = true
+
+        inst:AddComponent("rechargeable")        
+        inst:ListenForEvent("rechargechange", fns.onghostflowerrecharge)
+
+        MakeHauntableLaunch(inst)
+
+        return inst
+    end
+
+    -----------------------------------------------------------------------------
+
     fns.rabbit_idleanims = function(inst)
         if inst.rabbithat_doidleanims then
             local r = math.random(9)
@@ -4997,8 +5156,262 @@ local function MakeHat(name)
         return inst
     end
 
-    -----------------------------------------------------------------------------
+    ----------------------------------------------------------------
 
+    fns.shadowthrall_parasite_retargetfn = function(inst)
+        return FindEntity(
+            inst,
+            TUNING.SHADOWTHRALL_PARASITE_TARGET_DIST,
+            function(guy)
+                return inst.components.combat:CanTarget(guy) and 
+                       not guy:HasTag("shadowthrall") and 
+                       not guy:HasTag("shadow") and 
+                       (guy:HasTag("smallcreature") or 
+                        guy:HasTag("animal") or
+                        guy:HasTag("largecreature") or
+                        guy:HasTag("monster") or 
+                        guy:HasTag("character"))
+            end,
+            nil,
+            SHADOWTHRALL_PARASITE_RETARGET_CANT_TAGS
+        )
+    end
+
+    fns.shadowthrall_parasite_keeptarget = function(inst, target)
+        return inst.components.combat:CanTarget(target) and not target:HasTag("shadowthrall_parasite_hosted")
+    end
+
+    fns.shadowthrall_parasite_onkilledsomething = function(owner, data)
+        if TheWorld.components.shadowparasitemanager == nil then
+            return
+        end
+
+        if data.victim == nil or not data.victim:IsValid() then
+            return
+        end
+
+        if data.victim.sg == nil or not (data.victim.sg:HasState("parasite_revive") or data.victim.sg:HasState("death_hosted")) then
+            return
+        end
+
+        data.victim.shadowthrall_parasite_hosted_death = true
+
+        if data.victim.erode_task ~= nil then
+            data.victim.erode_task:Cancel()
+            data.victim.erode_task = nil
+            data.victim:RemoveTag("NOCLICK")
+            data.victim.persists = true
+        end
+    end
+
+    fns.shadowthrall_parasite_ondeath = function(owner, data)
+        owner.components.inventory:Unequip(EQUIPSLOTS.HEAD)
+    end
+
+    fns.shadowthrall_parasite_talk = function(inst, strid)
+        if inst.fx == nil or inst.fx:IsInLimbo() or inst.fx:IsAsleep() then
+            return
+        end
+
+        inst.fx.components.talker:Chatter("SHADOWTHRALL_PARASITE_CHANT", strid)
+    end
+
+    fns.shadowthrall_parasite_onspawn = function(inst)
+        local shadowparasitemanager = TheWorld.components.shadowparasitemanager
+
+        if shadowparasitemanager ~= nil then
+            shadowparasitemanager:StartTrackingParasite(inst)
+        end
+    end
+
+    fns.shadowthrall_parasite_onequip = function(inst, owner)
+        fns.opentop_onequip(inst, owner)
+
+        owner:AddTag("shadowthrall_parasite_hosted")
+
+        if inst.fx ~= nil then
+            inst.fx:Remove()
+        end
+
+        inst.fx = SpawnPrefab("shadow_thrall_parasitehat_fx")
+
+        if inst.fx ~= nil then
+            inst.fx:AttachToOwner(owner)
+        end
+
+        if owner.components.combat ~= nil then
+            owner.components.combat:SetKeepTargetFunction(fns.shadowthrall_parasite_keeptarget)
+            owner.components.combat:SetRetargetFunction(3, fns.shadowthrall_parasite_retargetfn)
+        end
+
+        if owner.components.sleeper ~= nil then
+            owner.components.sleeper:SetSleepTest(function() return false end)
+            owner.components.sleeper:SetWakeTest(function()  return true  end)
+        end
+
+        if owner.components.talker ~= nil then
+            owner.components.talker:IgnoreAll(inst)
+        end
+
+        if owner.components.trader ~= nil then
+            owner.components.trader:Disable()
+        end
+
+        if owner.components.herdmember ~= nil then
+            owner.components.herdmember:Enable(false)
+        end
+
+        if owner.components.planarentity == nil then
+            owner.planarentity_added = true
+
+            owner:AddComponent("planarentity")
+        end
+
+        if owner.components.herdmember then
+            owner.components.herdmember:Enable(false)
+        end
+
+        if owner.components.planardamage == nil then
+            owner.planardamage_added = true
+
+            owner:AddComponent("planardamage")
+            owner.components.planardamage:SetBaseDamage(TUNING.SHADOWTHRALL_PARASITE_PLANAR_DAMAGE)
+        end
+
+        local brain = require("brains/hostedbrain")
+        owner:SetBrain(brain)
+
+		if owner.SoundEmitter then
+			owner.SoundEmitter:PlaySound("hallowednights2024/thrall_parasite/thrall_idle_LP","parasite_LP")
+		end
+
+        inst:ListenForEvent("death", fns.shadowthrall_parasite_ondeath, owner)
+        inst:ListenForEvent("killed", fns.shadowthrall_parasite_onkilledsomething, owner)
+        inst:ListenForEvent("makeplayerghost", function()
+            inst.noloot = true
+            inst:Remove()
+        end, owner)
+    end
+
+    fns.shadowthrall_parasite_onunequip = function(inst, owner)
+       _onunequip(inst, owner)
+
+       inst:RemoveEventCallback("death", fns.shadowthrall_parasite_ondeath, owner)
+       inst:RemoveEventCallback("killed", fns.shadowthrall_parasite_onkilledsomething, owner)
+       
+        owner:RemoveTag("shadowthrall_parasite_hosted")
+
+        if owner.planarentity_added then
+           owner:RemoveComponent("planarentity")
+        end
+
+        if owner.planardamage_added then
+           owner:RemoveComponent("planardamage")
+        end
+
+        if owner.components.talker ~= nil then
+            owner.components.talker:StopIgnoringAll(inst)
+        end
+
+        if owner.components.trader ~= nil then
+            owner.components.trader:Enable()
+        end
+
+        if owner.components.herdmember ~= nil then
+            owner.components.herdmember:Enable(true)
+        end
+
+        if inst.fx ~= nil then
+            inst.fx:Remove()
+            inst.fx = nil
+        end
+
+        if not inst.noloot then
+            if owner.components.lootdropper == nil then
+                owner:AddComponent("lootdropper")
+            end
+
+            if math.random() <= 0.3 then
+                local loot = {
+                    "mask_sagehat",
+                    "mask_halfwithat",
+                    "mask_toadyhat",
+                }
+
+                local mask = SpawnPrefab(loot[math.random(#loot)])
+
+                owner.components.lootdropper:FlingItem(mask)
+            end
+
+            owner.components.lootdropper:FlingItem(SpawnPrefab("horrorfuel"))
+        end
+
+		if owner.SoundEmitter then
+			owner.SoundEmitter:KillSound("parasite_LP")
+		end
+
+        inst:DoTaskInTime(0, inst.Remove)
+
+        if owner.components.health ~= nil and not owner.components.health:IsDead() then
+            owner.components.health:Kill()
+        end
+    end
+
+    fns.shadowthrall_parasite_custom_init = function(inst)
+        inst:AddTag("shadowthrall_parasite")
+    end
+
+    fns.shadowthrall_parasite_OnEntitySleep = function(inst)
+        inst.remove_self_task = inst:DoTaskInTime( TUNING.SHADOWTHRALL_PARASITE_TIMEOUT , function()
+            local owner = inst.components.inventoryitem.owner or nil
+            if owner then
+                owner:Remove()
+            end
+            if inst:IsValid() then
+                inst:Remove()
+            end
+        end )
+    end
+
+    fns.shadowthrall_parasite_OnEntityWake = function(inst)
+        if inst.remove_self_task then
+            inst.remove_self_task:Cancel()
+            inst.remove_self_task = nil
+        end
+    end
+
+    fns.shadowthrall_parasite = function()
+        local inst = simple(fns.shadowthrall_parasite_custom_init)
+
+        inst.components.floater:SetSize("med")
+        inst.components.floater:SetVerticalOffset(0.25)
+        inst.components.floater:SetScale(.75)
+
+        inst:AddTag("nosteal")
+
+        if not TheWorld.ismastersim then
+            return inst
+        end
+
+        inst.SaySpeechLine = fns.shadowthrall_parasite_talk
+
+        inst:DoTaskInTime(0, fns.shadowthrall_parasite_onspawn)
+
+        inst.components.equippable:SetOnEquip(fns.shadowthrall_parasite_onequip)
+        inst.components.equippable:SetOnUnequip(fns.shadowthrall_parasite_onunequip)
+
+        inst.components.inventoryitem.keepondeath = true
+
+        MakeHauntableLaunch(inst)
+
+        inst.OnEntitySleep = fns.shadowthrall_parasite_OnEntitySleep
+        inst.OnEntityWake = fns.shadowthrall_parasite_OnEntityWake
+
+        return inst
+    end
+
+
+    -----------------------------------------------------------------------------
     local fn = nil
     local assets = { Asset("ANIM", "anim/"..fname..".zip") }
     local prefabs = nil
@@ -5143,13 +5556,20 @@ local function MakeHat(name)
     elseif name == "mask_tree" then
         fn = fns.mask
     elseif name == "mask_fool" then
-        fn = fns.mask        
+        fn = fns.mask
+    elseif name == "mask_halfwit" then
+        prefabs = { "mask_halfwit_fx" }
+        fn = fns.mask
+    elseif name == "mask_sage" then
+        fn = fns.mask
+    elseif name == "mask_toady" then
+        fn = fns.mask
     elseif name == "nightcap" then
         fn = fns.nightcap
     elseif name == "dreadstone" then
     	fn = fns.dreadstone
     elseif name == "lunarplant" then
-    	prefabs = { "lunarplanthat_fx" }
+    	prefabs = { "lunarplanthat_fx", "wortox_resist_fx" }
     	fn = fns.lunarplant
     elseif name == "voidcloth" then
     	prefabs = { "voidclothhat_fx" }
@@ -5160,6 +5580,9 @@ local function MakeHat(name)
         prefabs = { "wagpunkhat_fx", "wagpunksteam_hat_up", "wagpunksteam_hat_down", "wagpunk_bits", "wagpunkhat_classified" }
         table.insert(assets, Asset("ANIM", "anim/firefighter_placement.zip"))
         fn = fns.wagpunk
+    elseif name == "shadow_thrall_parasite" then
+        prefabs = { "shadow_thrall_parasitehat_fx"}  
+        fn = fns.shadowthrall_parasite
     elseif name == "scrap_monocle" then
         fn = fns.scrap_monocle
     elseif name == "scrap" then
@@ -5175,6 +5598,8 @@ local function MakeHat(name)
 		table.insert(assets, Asset("INV_IMAGE", "inspectacleshat_equip_signal"))
 	elseif name == "roseglasses" then
 		fn = fns.roseglasses
+    elseif name == "ghostflower" then
+        fn = fns.ghostflower    
     elseif name == "rabbit" then
         fn = fns.rabbit
 		prefabs = { "rabbithat_fx", "smallmeat" }
@@ -5291,6 +5716,75 @@ local function wagpunkhat_fx_common_postinit(inst)
     if not TheNet:IsDedicated() then
         inst:ListenForEvent("wagpunk_leveldirty", wagpunkhat_fx_leveldirty)
     end
+end
+
+local function mask_halfwit_CreateFxFollowFrame(i)
+    local inst = CreateEntity()
+
+    --[[Non-networked entity]]
+    inst.entity:AddTransform()
+    inst.entity:AddAnimState()
+    inst.entity:AddFollower()
+
+    inst:AddTag("FX")
+
+    inst.AnimState:SetBank("mask_halfwithat")
+    inst.AnimState:SetBuild("hat_mask_halfwit")
+    inst.AnimState:PlayAnimation("blink")
+
+    inst:AddComponent("highlightchild")
+
+    inst.persists = false
+
+    inst:ListenForEvent("animover", inst.Remove)
+
+    return inst
+end
+
+local SHADOWTHRALL_PARASITE_TALK_COLOUR = Vector3(168/255, 61/255, 213/255)
+
+local function shadowthrall_parasite_ondonetalking(inst)
+    inst.SoundEmitter:KillSound("talk")
+end
+
+local function shadowthrall_parasite_ontalk(inst)
+    inst.SoundEmitter:KillSound("talk")
+    inst.SoundEmitter:PlaySound("hallowednights2024/thrall_parasite/vocalization", "talk")
+end
+
+local function shadow_thrall_parasite_fx_common_postinit(inst)
+    inst.entity:AddSoundEmitter()
+
+    inst:AddComponent("talker")
+    inst.components.talker.fontsize = 28
+    inst.components.talker.font = TALKINGFONT
+    inst.components.talker.colour = SHADOWTHRALL_PARASITE_TALK_COLOUR
+    inst.components.talker.offset = Vector3(0, -500, 0)
+    inst.components.talker:MakeChatter()
+
+    inst:ListenForEvent("ontalk", shadowthrall_parasite_ontalk)
+    inst:ListenForEvent("donetalking", shadowthrall_parasite_ondonetalking)
+end
+
+local function shadow_thrall_parasite_CreateFxFollowFrame(i)
+    local inst = CreateEntity()
+
+    --[[Non-networked entity]]
+    inst.entity:AddTransform()
+    inst.entity:AddAnimState()
+    inst.entity:AddFollower()
+
+    inst:AddTag("FX")
+
+    inst.AnimState:SetBank("hat_shadow_thrall_parasite")
+    inst.AnimState:SetBuild("hat_shadow_thrall_parasite")
+    inst.AnimState:PlayAnimation("idle"..tostring(i), true)
+
+    inst:AddComponent("highlightchild")
+
+    inst.persists = false
+
+    return inst
 end
 
 local function lunarplanthat_CreateFxFollowFrame(i)
@@ -5694,6 +6188,11 @@ return  MakeHat("straw"),
         MakeHat("mask_king"),
         MakeHat("mask_tree"),
         MakeHat("mask_fool"),
+        
+        MakeHat("mask_sage"),
+        MakeHat("mask_halfwit"),
+        MakeHat("mask_toady"),        
+        
         MakeHat("monkey_medium"),
         MakeHat("monkey_small"),
         MakeHat("polly_rogers"),
@@ -5712,8 +6211,26 @@ return  MakeHat("straw"),
 
         MakeHat("inspectacles"),
 		MakeHat("roseglasses"),
+        MakeHat("ghostflower"),        
 
         MakeHat("rabbit"),
+
+        MakeHat("shadow_thrall_parasite"),
+
+        MakeFollowFx("mask_halfwit_fx", {
+            createfn = mask_halfwit_CreateFxFollowFrame,
+            framebegin = 1,
+            frameend = 3,
+            assets = { Asset("ANIM", "anim/hat_mask_halfwit.zip") },
+        }), 
+
+        MakeFollowFx("shadow_thrall_parasitehat_fx", {
+            createfn = shadow_thrall_parasite_CreateFxFollowFrame,
+            common_postinit =  shadow_thrall_parasite_fx_common_postinit,
+            framebegin = 1,
+            frameend = 3,
+            assets = { Asset("ANIM", "anim/hat_shadow_thrall_parasite.zip") },
+        }),
 
 		MakeFollowFx("lunarplanthat_fx", {
 			createfn = lunarplanthat_CreateFxFollowFrame,
@@ -5766,3 +6283,5 @@ return  MakeHat("straw"),
         Prefab("alterguardianhatlight", alterguardianhatlightfn),
 
 		Prefab("tophat_container", tophatcontainerfn)
+
+

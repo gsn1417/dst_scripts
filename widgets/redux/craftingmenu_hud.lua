@@ -119,6 +119,7 @@ local CraftingMenuHUD = Class(Widget, function(self, owner, is_left_aligned)
     self.inst:ListenForEvent("sanitydelta", UpdateRecipesForSanityIngredients, self.owner)
     self.inst:ListenForEvent("techtreechange", UpdateRecipesForTechTreeChange, self.owner)
     self.inst:ListenForEvent("onactivateskill_client", event_UpdateRecipes, self.owner)
+    self.inst:ListenForEvent("ondeactivateskill_client", event_UpdateRecipes, self.owner)
     self.inst:ListenForEvent("localplayer._skilltreeactivatedany", event_UpdateRecipes, self.owner)
     self.inst:ListenForEvent("itemget", event_UpdateRecipes, self.owner)
     self.inst:ListenForEvent("itemlose", event_UpdateRecipes, self.owner)
@@ -262,10 +263,19 @@ function CraftingMenuHUD:RebuildRecipes()
 
 		local tech_trees = builder:GetTechTrees()
 		local tech_trees_no_temp = builder:GetTechTreesNoTemp()
+        local cached_tech_trees = {}
+        local cached_tech_trees_temp = {}
+        local cached_should_hint_trees = {}
         for k, recipe in pairs(AllRecipes) do
             if IsRecipeValid(recipe.name) then
-				local knows_recipe = builder:KnowsRecipe(recipe)
-				local should_hint_recipe = ShouldHintRecipe(recipe.level, tech_trees)
+				local knows_recipe = builder:KnowsRecipe(recipe, nil, cached_tech_trees)
+                local should_hint_recipe
+                if cached_should_hint_trees[recipe.level] == nil then
+                    should_hint_recipe = ShouldHintRecipe(recipe.level, tech_trees)
+                    cached_should_hint_trees[recipe.level] = should_hint_recipe
+                else
+                    should_hint_recipe = cached_should_hint_trees[recipe.level]
+                end
 
 				if self.valid_recipes[recipe.name] == nil then
 					self.valid_recipes[recipe.name] = {recipe = recipe, meta = {}}
@@ -277,7 +287,7 @@ function CraftingMenuHUD:RebuildRecipes()
 
 				local is_build_tag_restricted = not builder:CanLearn(recipe.name) -- canlearn is "not build tag restricted"
 
-				if knows_recipe or should_hint_recipe or freecrafting then --Knows enough to see it
+				if knows_recipe or should_hint_recipe or recipe.force_hint or freecrafting then --Knows enough to see it
 				--and (self.filter == nil or self.filter(recipe.name, builder, nil)) -- Has no filter or passes the filter in place
 
 					if builder:IsBuildBuffered(recipe.name) and not is_build_tag_restricted then
@@ -291,7 +301,7 @@ function CraftingMenuHUD:RebuildRecipes()
 						meta.build_state = "hide"
 					elseif knows_recipe then
 						meta.can_build = builder:HasIngredients(recipe)
-						if not recipe.nounlock and not builder:KnowsRecipe(recipe, true) and CanPrototypeRecipe(recipe.level, tech_trees_no_temp) then
+						if not recipe.nounlock and not builder:KnowsRecipe(recipe, true, cached_tech_trees_temp) and CanPrototypeRecipe(recipe.level, tech_trees_no_temp) then
 							--V2C: for recipes known through temp bonus buff,
 							--     but can be prototyped without consuming it
 							meta.build_state = "prototype"
@@ -301,6 +311,9 @@ function CraftingMenuHUD:RebuildRecipes()
 					elseif CanPrototypeRecipe(recipe.level, tech_trees) then
 						meta.can_build = builder:HasIngredients(recipe)
 						meta.build_state = recipe.nounlock and (meta.can_build and "has_ingredients" or "no_ingredients") or "prototype"
+					elseif recipe.force_hint then
+						meta.can_build = false
+						meta.build_state = "hint"
 					elseif recipe.nounlock then
 						meta.can_build = false
 						meta.build_state = "hide"

@@ -77,16 +77,19 @@ local tendencies =
     ORNERY =
     {
         build = "beefalo_personality_ornery",
+        build_short = "_ornery",
     },
 
     RIDER =
     {
         build = "beefalo_personality_docile",
+        build_short = "_docile",
     },
 
     PUDGY =
     {
         build = "beefalo_personality_pudgy",
+        build_short = "_pudgy",
         customactivatefn = function(inst)
             inst:AddComponent("sanityaura")
             inst.components.sanityaura.aura = TUNING.SANITYAURA_TINY
@@ -267,9 +270,9 @@ local function ApplyBuildOverrides(inst, animstate)
         animstate:Hide("HEAT")
     end
 
-    if inst.components.skinner_beefalo then
-        local clothing_names = inst.components.skinner_beefalo:GetClothing()
-        SetBeefaloSkinsOnAnim( animstate, clothing_names, animstate ~= inst.AnimState and inst.GUID or nil )
+    local clothing_names = inst.components.skinner_beefalo and inst.components.skinner_beefalo:GetClothing() or nil
+    if clothing_names then
+        SetBeefaloSkinsOnAnim(animstate, clothing_names, animstate ~= inst.AnimState and inst.GUID or nil)
     end
 
     if tendencies[inst.tendency].build ~= nil then
@@ -277,6 +280,11 @@ local function ApplyBuildOverrides(inst, animstate)
     elseif animstate == inst.AnimState then
         -- this presumes that all the face builds have the same symbols
         animstate:ClearOverrideBuild("beefalo_personality_docile")
+    end
+
+    if clothing_names then
+        -- NOTES(JBK): Skinning of face tendencies needs to be last.
+        SetBeefaloFaceSkinsOnAnim(animstate, clothing_names, animstate ~= inst.AnimState and inst.GUID or nil, tendencies[inst.tendency].build_short or "")
     end
 end
 
@@ -515,7 +523,6 @@ local function OnRefuseItem(inst, giver, item)
 end
 
 local function OnDomesticated(inst, data)
-    inst.components.rideable:Buck()
     inst.domesticationPending = true
 end
 
@@ -663,8 +670,7 @@ local function OnDeath(inst, data)
         inst.components.beard:EnableGrowth(false)
         inst.components.hunger:Pause()
 
-        inst.components.follower.noleashing = true
-        inst.components.follower:StopLeashing()
+        inst.components.follower:DisableLeashing()
 
         inst:AddTag("deadcreature")
         inst:AddTag("give_dolongaction")
@@ -697,20 +703,23 @@ function fns.OnRevived(inst, revive)
 
     inst.components.trader:SetAbleToAcceptTest(nil)
 
+    -- Set up this again since it's stopped on death.
+    inst.components.saltlicker:SetUp(TUNING.SALTLICK_BEEFALO_USES)
+
     -- These are called when exiting the revive state.
 
     -- inst.components.beard:EnableGrowth(true)
     -- inst.components.hunger:Resume()
 
-    -- inst.components.follower.noleashing = false
-    -- inst.components.follower:StartLeashing()
+    -- inst.components.follower:EnableLeashing()
 
     -- inst:RemoveTag("deadcreature")
 end
 
 local function DomesticationTriggerFn(inst)
-    return inst.components.hunger:GetPercent() > 0
-        or inst.components.rideable:IsBeingRidden() == true
+    return
+        (inst.components.hunger:GetPercent() > 0 and not inst.components.hunger:IsPaused()) or
+        inst.components.rideable:IsBeingRidden() == true
 end
 
 local function OnStarving(inst, dt)
@@ -786,6 +795,9 @@ local function OnRiderChanged(inst, data)
         end
         inst._bucktask = inst:DoTaskInTime(CalculateBuckDelay(inst), OnBuckTime)
         inst.components.knownlocations:RememberLocation("loiteranchor", inst:GetPosition())
+        if inst.sg ~= nil then
+            inst.sg:GoToState("idle")
+        end
     elseif inst.components.health:IsDead() then
         if inst.sg.currentstate.name ~= "death" then
             inst.sg:GoToState("death")

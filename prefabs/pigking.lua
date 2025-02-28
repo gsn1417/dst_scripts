@@ -23,6 +23,10 @@ for i = 1, NUM_HALLOWEENCANDY do
     table.insert(prefabs, "halloweencandy_"..i)
 end
 
+for i = 1, NUM_HALLOWEEN_PUMPKINCARVERS do
+    table.insert(prefabs, "pumpkincarver"..i)
+end
+
 --------------------------------------------------------------------------
 
 local MINIGAME_ITEM = "goldnugget"
@@ -102,6 +106,12 @@ local function ontradeforgold(inst, item, giver)
             local candy = SpawnPrefab("halloweencandy_"..GetRandomItem(candytypes))
             candy.Transform:SetPosition(x, y, z)
             launchitem(candy, angle)
+        end
+
+        if math.random() <= TUNING.HALLOWEEN_PUMPKINCARVER_PIGKING_TRADE_CHANCE then
+            local pumpkincarver = SpawnPrefab("pumpkincarver"..math.random(NUM_HALLOWEEN_PUMPKINCARVERS))
+            pumpkincarver.Transform:SetPosition(x, y, z)
+            launchitem(pumpkincarver, angle)
         end
     end
 end
@@ -586,12 +596,13 @@ local function AcceptTest(inst, item, giver)
     return item.components.tradable.goldvalue > 0 or is_event_item or item.prefab == "pig_token"
 end
 
-local function OnHaunt(inst, haunter)
+local function OnHaunt(inst)
     if inst.components.trader ~= nil and inst.components.trader.enabled then
         OnRefuseItem(inst)
         return true
+    else
+        return false
     end
-    return false
 end
 
 local function teletopos(inst)

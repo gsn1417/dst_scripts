@@ -39,6 +39,24 @@ local InventoryItemHolder = Class(function(self, inst)
     self.onitemtakenfn = nil
 
     self._onitemremoved = function(item) self.item = nil end
+
+    self._onitemmissing = function(item)
+        if self.item.parent == self.inst then
+            return -- We are fine!
+        end
+
+        self.item:RemoveTag("outofreach")
+
+        self.inst:RemoveEventCallback("onremove", self._onitemremoved, self.item)
+        self.inst:RemoveEventCallback("ondropped", self._onitemmissing, self.item)
+        self.inst:RemoveEventCallback("onputininventory", self._onitemmissing, self.item)
+
+        if self.onitemtakenfn ~= nil then
+            self.onitemtakenfn(self.inst, self.item, nil, true)
+        end
+
+        self.item = nil
+    end
 end,
 nil,
 {
@@ -100,17 +118,15 @@ function InventoryItemHolder:GiveItem(item, giver)
         return false
     end
 
-	local owner = item.components.inventoryitem.owner
+	local owner = item.components.inventoryitem:GetGrandOwner()
 	if owner then
 		if owner.components.inventory then
 			--Use DropItem
 			--RemoveItem should only be used when immediately giving back to inventory
 			item = owner.components.inventory:DropItem(item, self.acceptstacks) or item
-		elseif owner.components.container then
-			--V2C: containers DropItem only supports wholestack.
-			--     also, containers should not be able to perform a give action anyway.
-			assert(self.acceptstacks)
-			owner.components.container:DropItem(item)
+		else--if owner.components.container then
+			--V2C: containers should not be able to perform a give action anyway.
+			return false
 		end
 	end
 
@@ -132,6 +148,8 @@ function InventoryItemHolder:GiveItem(item, giver)
         item:AddTag("outofreach")
 
         self.inst:ListenForEvent("onremove", self._onitemremoved, item)
+        self.inst:ListenForEvent("ondropped", self._onitemmissing, item)
+        self.inst:ListenForEvent("onputininventory", self._onitemmissing, item)
 
         self.item = item
     end
@@ -148,34 +166,49 @@ function InventoryItemHolder:GiveItem(item, giver)
     return true
 end
 
-function InventoryItemHolder:TakeItem(taker)
+function InventoryItemHolder:TakeItem(taker, wholestack)
+    if wholestack == nil then
+        wholestack = true
+    end
+
     if not self:CanTake(taker) then
         return false
     end
 
+    local item = not wholestack and self.item.components.stackable ~= nil and self.item.components.stackable:Get() or self.item
+
+    if item == self.item then
+        self.inst:RemoveChild(self.item)
+
+        self.item:RemoveTag("outofreach")
+
+        self.inst:RemoveEventCallback("onremove", self._onitemremoved, self.item)
+        self.inst:RemoveEventCallback("ondropped", self._onitemmissing, self.item)
+        self.inst:RemoveEventCallback("onputininventory", self._onitemmissing, self.item)
+
+    elseif self.item.components.stackable ~= nil and not self.item.components.stackable:IsFull() then
+        self.inst:AddTag("inventoryitemholder_give")
+    end
+
+    item.components.inventoryitem:InheritWorldWetnessAtTarget(self.inst)
+
     local pos = self.inst:GetPosition()
 
-    self.inst:RemoveChild(self.item)
-
-    self.item.components.inventoryitem:InheritWorldWetnessAtTarget(self.inst)
-
-    self.item:RemoveTag("outofreach")
-
-    self.inst:RemoveEventCallback("onremove", self._onitemremoved, self.item)
-
     if taker ~= nil and taker:IsValid() and taker.components.inventory ~= nil then
-        taker.components.inventory:GiveItem(self.item, nil, pos)
+        taker.components.inventory:GiveItem(item, nil, pos)
     else
-        self.item.Transform:SetPosition(pos:Get())
-        self.item.components.inventoryitem:OnDropped(true)
+        item.Transform:SetPosition(pos:Get())
+        item.components.inventoryitem:OnDropped(true)
     end
 
     if self.onitemtakenfn ~= nil then
         -- Be aware that the item might be invalid at this point, in case it gets stacked on taken.
-        self.onitemtakenfn(self.inst, self.item, taker)
+        self.onitemtakenfn(self.inst, item, taker, item == self.item)
     end
 
-    self.item = nil
+    if item == self.item then
+        self.item = nil
+    end
 
     return true
 end

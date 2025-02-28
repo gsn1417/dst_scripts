@@ -708,7 +708,7 @@ local function MoveSegmentUnderGround(inst, chunk, test_segment, percent, instan
 
     chunk.segmentstotal = chunk.segmentstotal - 1
 
-    if #chunk.segments <= 0 and chunk.dirt_end:IsValid() then
+    if #chunk.segments <= 0 and chunk.dirt_end and chunk.dirt_end:IsValid() then
         chunk.dirt_end.AnimState:PlayAnimation("dirt_pst_slow")
     end
 
@@ -1121,12 +1121,20 @@ local function UpdateRegularChunk(inst, chunk, dt, instant)
         for i, segment in ipairs(chunk.segments) do
             segment.Transform:SetScale(scale, scale, scale)
 
+            if chunk.hit == 1 then
+                segment.hitevent:push()
+            end
+
             local x, y, z = segment.Transform:GetWorldPosition()
             segment.Transform:SetPosition(x, 0, z)
         end
 
         if chunk.lastsegment ~= nil then
             chunk.lastsegment.Transform:SetScale(scale, scale, scale)
+
+            if chunk.hit == 1 then
+                chunk.lastsegment.hitevent:push()
+            end
 
             local x, y, z = chunk.lastsegment.Transform:GetWorldPosition()
             chunk.lastsegment.Transform:SetPosition(x, 0, z)

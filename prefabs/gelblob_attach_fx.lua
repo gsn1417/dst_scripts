@@ -39,6 +39,13 @@ local function KillConnector(inst, mainblob)
 	inst._x, inst._y, inst._z = inst.Transform:GetWorldPosition()
 	inst.entity:SetParent(nil)
 	inst.Transform:SetPosition(inst._x, inst._y, inst._z)
+
+	if inst:IsAsleep() then
+		inst:Remove()
+		return
+	end
+
+	inst.DynamicShadow:Enable(false)
 	inst.AnimState:PlayAnimation("blob_attach_middle_pst")
 	inst:ListenForEvent("animover", inst.Remove)
 	inst.OnEntitySleep = inst.Remove
@@ -212,7 +219,7 @@ local function RegisterTargetLocomotorDebuff(inst, target)
 		tbl[inst] = true
 	else
 		ALLTARGETS[target] = { [inst] = true }
-		target.components.locomotor:SetExternalSpeedMultiplier(inst, "gelblob", TUNING.CAREFUL_SPEED_MOD)
+		target.components.locomotor:SetExternalSpeedMultiplier(target, "gelblob", TUNING.CAREFUL_SPEED_MOD)
 	end
 	inst._target = target
 end
@@ -224,7 +231,7 @@ local function UnregisterTargetLocomotorDebuff(inst)
 		if next(tbl) == nil then
 			ALLTARGETS[inst._target] = nil
 			if inst._target.components.locomotor and inst._target:IsValid() then
-				inst._target.components.locomotor:RemoveExternalSpeedMultiplier(inst, "gelblob")
+				inst._target.components.locomotor:RemoveExternalSpeedMultiplier(inst._target, "gelblob")
 			end
 		end
 	end
@@ -292,6 +299,13 @@ local function KillFX(inst)
 		inst.entity:SetParent(nil)
 	end
 	inst.Transform:SetPosition(x, y, z)
+
+	if inst:IsAsleep() then
+		inst:Remove()
+		return
+	end
+
+	inst.DynamicShadow:Enable(false)
 	inst.AnimState:PlayAnimation("splash")
 	inst:ListenForEvent("animover", inst.Remove)
 	inst.OnEntitySleep = inst.Remove

@@ -25,9 +25,11 @@ local assets =
     Asset("ANIM", "anim/merm_guard_shadow_build.zip"),
     Asset("ANIM", "anim/merm_guard_small_shadow_build.zip"),
 
-    Asset("ANIM", "anim/merm_guard_transformation.zip"),    
+    Asset("ANIM", "anim/merm_guard_transformation.zip"),
 
     Asset("ANIM", "anim/merm_actions_skills.zip"),
+
+    Asset("ANIM", "anim/ds_pig_parasite_death.zip"),    
 
     Asset("SOUND", "sound/merm.fsb"),
 }
@@ -93,26 +95,10 @@ local sounds_guard = {
 local merm_brain = require "brains/mermbrain"
 local merm_guard_brain = require "brains/mermguardbrain"
 
+--------------------------------------------------------------------------------------------------------------------------------
+
 local SLIGHTDELAY = 1
-
 local LOW_HEALTH_PERCENT = 0.2
-
-local function MermDamageCalculator(inst)
-    local hasking = TheWorld.components.mermkingmanager ~= nil and TheWorld.components.mermkingmanager:HasKingAnywhere()
-
-    local damage
-    if inst:HasTag("guard") then
-        damage = (hasking and TUNING.MERM_GUARD_DAMAGE) or TUNING.PUNY_MERM_DAMAGE
-    else
-        damage = (hasking and TUNING.MERM_DAMAGE_KINGBONUS) or TUNING.MERM_DAMAGE
-    end
-
-    if inst.components.planardamage ~= nil then
-        damage = damage - inst.components.planardamage:GetBaseDamage()
-    end
-
-    return damage
-end
 
 local function FindInvaderFn(guy, inst)
     if guy:HasTag("NPC_contestant") then
@@ -190,27 +176,37 @@ local function IsNonPlayerMerm(this)
     return not this.isplayer and this:HasTag("merm")
 end
 
+local function IsHost(dude)
+    return dude:HasTag("shadowthrall_parasite_hosted")
+end 
+
 local function resolve_on_attacked(inst, attacker)
     if attacker.prefab == "deciduous_root" and attacker.owner ~= nil then
         OnAttackedByDecidRoot(inst, attacker.owner)
 
     elseif attacker.prefab ~= "deciduous_root" and inst.components.combat:CanTarget(attacker) then
-        local isguard = inst:HasTag("mermguard")
 
-        local share_target_dist = (isguard and TUNING.MERM_GUARD_SHARE_TARGET_DIST) or TUNING.MERM_SHARE_TARGET_DIST
-        local max_target_shares = (isguard and TUNING.MERM_GUARD_MAX_TARGET_SHARES) or TUNING.MERM_MAX_TARGET_SHARES
+        if inst:HasTag("shadowthrall_parasite_hosted") then
+            inst.components.combat:ShareTarget(attacker, TUNING.MERM_SHARE_TARGET_DIST, IsHost, TUNING.MERM_MAX_TARGET_SHARES)
+        else
+            local isguard = inst:HasTag("mermguard")
 
-        inst.components.combat:SetTarget(attacker)
-        if inst.components.combat:HasTarget() then
-            local home = inst.components.homeseeker and inst.components.homeseeker.home
-            if home and home.components.childspawner and inst:GetDistanceSqToInst(home) <= share_target_dist*share_target_dist then
-                max_target_shares = max_target_shares - home.components.childspawner.childreninside
-                home.components.childspawner:ReleaseAllChildren(attacker)
+            local share_target_dist = (isguard and TUNING.MERM_GUARD_SHARE_TARGET_DIST) or TUNING.MERM_SHARE_TARGET_DIST
+            local max_target_shares = (isguard and TUNING.MERM_GUARD_MAX_TARGET_SHARES) or TUNING.MERM_MAX_TARGET_SHARES
+
+            if inst.components.combat:HasTarget() then
+                local home = inst.components.homeseeker and inst.components.homeseeker.home
+                if home and home.components.childspawner and inst:GetDistanceSqToInst(home) <= share_target_dist*share_target_dist then
+                    max_target_shares = max_target_shares - home.components.childspawner.childreninside
+                    home.components.childspawner:ReleaseAllChildren(attacker)
+                end
             end
+            inst.components.combat:ShareTarget(attacker, share_target_dist, IsNonPlayerMerm, max_target_shares)
         end
-        inst.components.combat:ShareTarget(attacker, share_target_dist, IsNonPlayerMerm, max_target_shares)
+        inst.components.combat:SetTarget(attacker)  
     end
 end
+
 
 local function OnAttacked(inst, data)
     local attacker = data ~= nil and data.attacker or nil
@@ -226,6 +222,8 @@ local function OnAttackDodged(inst, attacker)
     end
 end
 
+--------------------------------------------------------------------------------------------------------------------------------
+
 local MERM_TAGS = { "_health", "merm" }
 local MERM_IGNORE_TAGS = { "FX", "NOCLICK", "DECOR", "INLIMBO", "player", "shadowminion" }
 local MERM_IGNORE_TAGS_NOGUARDS = { "FX", "NOCLICK", "DECOR", "INLIMBO", "player", "shadowminion", "mermguard" }
@@ -240,7 +238,7 @@ local function MermSort(a, b) -- Better than bubble!
 end
 local function GetOtherMerms(inst, radius, maxcount, giver)
     local x, y, z = inst.Transform:GetWorldPosition()
-    
+
     local merms = TheSim:FindEntities(x, y, z, radius, MERM_TAGS, giver and giver:HasTag("playermerm") and MERM_IGNORE_TAGS or MERM_IGNORE_TAGS_NOGUARDS)
     local merms_highpriority = {}
     local merms_lowpriority = {}
@@ -287,7 +285,7 @@ end
 local function dohiremerms(inst, giver, item)
     local mermkingmanager = TheWorld.components.mermkingmanager
     local isguard = inst:HasTag("mermguard")
-    local loyalty_max = (isguard and TUNING.MERM_GUARD_LOYALTY_MAXTIME) or TUNING.MERM_LOYALTY_MAXTIME      
+    local loyalty_max = (isguard and TUNING.MERM_GUARD_LOYALTY_MAXTIME) or TUNING.MERM_LOYALTY_MAXTIME
     local loyalty_radius = (isguard and TUNING.MERM_GUARD_FOLLOWER_RADIUS) or TUNING.MERM_FOLLOWER_RADIUS
     local loyalty_count = (isguard and TUNING.MERM_GUARD_FOLLOWER_COUNT) or TUNING.MERM_FOLLOWER_COUNT
     local loyalty_per_hunger = (isguard and TUNING.MERM_GUARD_LOYALTY_PER_HUNGER) or TUNING.MERM_LOYALTY_PER_HUNGER
@@ -350,7 +348,9 @@ local function dohiremerms(inst, giver, item)
             end
         end
     end
-end    
+end
+
+--------------------------------------------------------------------------------------------------------------------------------
 
 local function IsAbleToAccept(inst, item, giver)
     if inst.components.health ~= nil and inst.components.health:IsDead() then
@@ -387,7 +387,7 @@ local function ShouldAcceptItem(inst, item, giver)
     return (giver:HasTag("merm") and not (inst:HasTag("mermguard") and giver:HasTag("mermdisguise"))) and
            ((item.components.equippable ~= nil and item.components.equippable.equipslot == EQUIPSLOTS.HEAD) or
            (item.components.edible and inst.components.eater and inst.components.eater:CanEat(item)) or
-           (item:HasTag("fish") and not (TheWorld.components.mermkingmanager and TheWorld.components.mermkingmanager:IsCandidate(inst)))) 
+           (item:HasTag("fish") and not (TheWorld.components.mermkingmanager and TheWorld.components.mermkingmanager:IsCandidate(inst))))
 
 end
 
@@ -433,6 +433,8 @@ local function OnRefuseItem(inst, item)
     end
 end
 
+--------------------------------------------------------------------------------------------------------------------------------
+
 local function SuggestTreeTarget(inst, data)
     local ba = inst:GetBufferedAction()
     if data ~= nil and data.tree ~= nil and (ba == nil or ba.action ~= ACTIONS.CHOP) then
@@ -440,17 +442,58 @@ local function SuggestTreeTarget(inst, data)
     end
 end
 
+--------------------------------------------------------------------------------------------------------------------------------
+
+local function UpdateDamageAndHealth(inst)
+    local hasking = TheWorld.components.mermkingmanager ~= nil and TheWorld.components.mermkingmanager:HasKingAnywhere()
+    local isguard = inst:HasTag("guard")
+
+    local damage
+
+    if isguard then
+        damage = (hasking and TUNING.MERM_GUARD_DAMAGE)     or TUNING.PUNY_MERM_DAMAGE
+    else
+        damage = (hasking and TUNING.MERM_DAMAGE_KINGBONUS) or TUNING.MERM_DAMAGE
+    end
+
+    if inst.components.planardamage ~= nil then
+        damage = damage - inst.components.planardamage:GetBaseDamage()
+    end
+
+    inst.components.combat:SetDefaultDamage(damage)
+
+    local health
+
+    if isguard then
+        health = (hasking and TUNING.MERM_GUARD_HEALTH)     or TUNING.PUNY_MERM_HEALTH
+
+    else
+        health = (hasking and TUNING.MERM_HEALTH_KINGBONUS) or TUNING.MERM_HEALTH
+    end
+
+    if inst:HasTag("lunarminion") then
+        health = health + (isguard and TUNING.MERM_LUNAR_GUARD_EXTRA_HEALTH or TUNING.MERM_LUNAR_EXTRA_HEALTH)
+    end
+
+    inst.components.health:SetMaxHealth(health)
+end
+
+local function UpdateRoyalStatus(inst, scale)
+    UpdateDamageAndHealth(inst)
+
+    if inst.updateeyebuild then
+        inst:updateeyebuild()
+    end
+
+    inst.Transform:SetScale(scale, scale, scale)
+end
+
 local function RoyalUpgrade(inst)
     if inst.components.health:IsDead() then
         return
     end
 
-    inst.components.health:SetMaxHealth(TUNING.MERM_HEALTH_KINGBONUS)
-    inst.components.combat:SetDefaultDamage(inst:MermDamageCalculator())
-    inst.Transform:SetScale(1.05, 1.05, 1.05)
-    if inst.updateeyebuild then
-        inst:updateeyebuild()
-    end
+    UpdateRoyalStatus(inst, 1.05)
 end
 
 local function RoyalDowngrade(inst)
@@ -458,13 +501,7 @@ local function RoyalDowngrade(inst)
         return
     end
 
-    inst.components.health:SetMaxHealth(TUNING.MERM_HEALTH)
-    inst.components.combat:SetDefaultDamage(inst:MermDamageCalculator())
-    inst.Transform:SetScale(1, 1, 1)
-
-    if inst.updateeyebuild then
-        inst:updateeyebuild()
-    end    
+    UpdateRoyalStatus(inst, 1)
 end
 
 local function RoyalGuardUpgrade(inst)
@@ -472,8 +509,7 @@ local function RoyalGuardUpgrade(inst)
         return
     end
 
-    inst.components.health:SetMaxHealth(TUNING.MERM_GUARD_HEALTH)
-    inst.components.combat:SetDefaultDamage(inst:MermDamageCalculator())
+    UpdateRoyalStatus(inst, 1)
 
     local build =
         (inst:HasTag("lunarminion")  and "merm_guard_lunar_build" ) or
@@ -481,11 +517,6 @@ local function RoyalGuardUpgrade(inst)
         "merm_guard_build"
 
     inst.AnimState:SetBuild(build)
-    inst.Transform:SetScale(1, 1, 1)
-
-    if inst.updateeyebuild then
-        inst:updateeyebuild()
-    end      
 end
 
 local function RoyalGuardDowngrade(inst)
@@ -493,8 +524,7 @@ local function RoyalGuardDowngrade(inst)
         return
     end
 
-    inst.components.health:SetMaxHealth(TUNING.PUNY_MERM_HEALTH)
-    inst.components.combat:SetDefaultDamage(inst:MermDamageCalculator())
+    UpdateRoyalStatus(inst, 0.9)
 
     local build =
         (inst:HasTag("lunarminion")  and "merm_guard_small_lunar_build" ) or
@@ -502,12 +532,9 @@ local function RoyalGuardDowngrade(inst)
         "merm_guard_small_build"
 
     inst.AnimState:SetBuild(build)
-    inst.Transform:SetScale(0.9, 0.9, 0.9)
-
-    if inst.updateeyebuild then
-        inst:updateeyebuild()
-    end      
 end
+
+--------------------------------------------------------------------------------------------------------------------------------
 
 local function ResolveMermChatter(inst, strid, strtbl)
     local stringtable = STRINGS[strtbl:value()]
@@ -677,7 +704,7 @@ local function droppedtarget(inst, data)
         return nil
     end
 
-    if inst.components.inventory then 
+    if inst.components.inventory then
         tool = inst.components.inventory:FindItem(function(item)
             if item.components.equippable and item.components.equippable.equipslot == EQUIPSLOTS.HANDS then
                 return true
@@ -691,9 +718,9 @@ end
 
 local function itemget(inst,data)
 
-    if not inst:HasTag("mermguard") then        
+    if not inst:HasTag("mermguard") then
         local tool = inst.components.inventory ~= nil and inst.components.inventory:GetEquippedItem(EQUIPSLOTS.HANDS) or nil
-        if not tool and (data.item:HasTag("merm_tool") or data.item:HasTag("merm_tool_upgraded")) then            
+        if not tool and (data.item:HasTag("merm_tool") or data.item:HasTag("merm_tool_upgraded")) then
             inst.components.inventory:Equip(data.item)
         end
     end
@@ -804,7 +831,7 @@ end
 local function living_merm_common_master(inst)
     inst:AddComponent("eater")
     inst.components.eater:SetDiet({ FOODGROUP.VEGETARIAN }, { FOODGROUP.VEGETARIAN })
-        
+
     inst:AddComponent("sleeper")
     inst.components.sleeper:SetNocturnal(true)
     inst.components.sleeper:SetSleepTest(ShouldSleep)
@@ -915,7 +942,7 @@ local function MakeMerm(name, assets, prefabs, common_postinit, master_postinit,
         inst:AddTag("character")
         inst:AddTag("merm")
         inst:AddTag("wet")
-        
+
         inst:AddTag("merm_npc")
 
         local talker = inst:AddComponent("talker")
@@ -1007,13 +1034,13 @@ local function MakeMerm(name, assets, prefabs, common_postinit, master_postinit,
 
         inst.TestForLunarMutation = TestForLunarMutation
         inst.DoLunarMutation = DoLunarMutation
-        inst.MermDamageCalculator = MermDamageCalculator
+        inst.UpdateDamageAndHealth = UpdateDamageAndHealth
         inst.TestForShadowDeath = TestForShadowDeath
         inst.DoThorns = DoThorns
         inst.dohiremerms = dohiremerms
 
         if not data or not data.unliving then
-            living_merm_common_master(inst) 
+            living_merm_common_master(inst)
         end
 
         if master_postinit ~= nil then
@@ -1170,8 +1197,8 @@ local function guard_master(inst)
     inst.components.combat:SetRetargetFunction(1, RetargetFn)
     inst.components.combat:SetKeepTargetFunction(KeepTargetFn)
 
-    inst.components.health:SetMaxHealth(TUNING.MERM_GUARD_HEALTH)
-    inst.components.combat:SetDefaultDamage(inst:MermDamageCalculator())
+    UpdateDamageAndHealth(inst)
+
     inst.components.combat:SetAttackPeriod(TUNING.MERM_GUARD_ATTACK_PERIOD)
 
     if inst.components.sleeper then
@@ -1239,8 +1266,8 @@ local function common_master(inst)
     inst.components.combat:SetRetargetFunction(1, RetargetFn)
     inst.components.combat:SetKeepTargetFunction(KeepTargetFn)
 
-    inst.components.health:SetMaxHealth(TUNING.MERM_HEALTH)
-    inst.components.combat:SetDefaultDamage(inst:MermDamageCalculator())
+    UpdateDamageAndHealth(inst)
+
     inst.components.combat:SetAttackPeriod(TUNING.MERM_ATTACK_PERIOD)
 
     MakeHauntablePanic(inst)
@@ -1339,7 +1366,7 @@ end
 
 local function OnChangedLeaderShadow(inst, new_leader)
     if new_leader == nil and not inst.components.health:IsDead() then
-        inst.sg:GoToState("hit_shadow")        
+        inst.sg:GoToState("hit_shadow")
     end
 end
 
@@ -1361,8 +1388,8 @@ local function shadow_merm_master(inst)
     combat:SetRetargetFunction(1, RetargetFn)
     combat:SetKeepTargetFunction(KeepTargetFn)
 
-    inst.components.health:SetMaxHealth(TUNING.MERM_HEALTH)
-    combat:SetDefaultDamage(inst:MermDamageCalculator())
+    UpdateDamageAndHealth(inst)
+
     combat:SetAttackPeriod(TUNING.MERM_ATTACK_PERIOD)
 
     inst:AddComponent("planardamage")
@@ -1420,8 +1447,8 @@ local function shadow_mermguard_master(inst)
     inst.components.combat:SetRetargetFunction(1, RetargetFn)
     inst.components.combat:SetKeepTargetFunction(KeepTargetFn)
 
-    inst.components.health:SetMaxHealth(TUNING.MERM_GUARD_HEALTH)
-    inst.components.combat:SetDefaultDamage(inst:MermDamageCalculator())
+    UpdateDamageAndHealth(inst)
+
     inst.components.combat:SetAttackPeriod(TUNING.MERM_GUARD_ATTACK_PERIOD)
 
     inst:AddComponent("planardamage")
@@ -1462,20 +1489,20 @@ end
 
 local function lunar_merm_master(inst)
     common_master(inst)
-   
+
     inst.components.combat:SetAttackPeriod(TUNING.MERM_ATTACK_PERIOD)
     inst.components.combat:SetRetargetFunction(1, RetargetFn)
     inst.components.combat:SetKeepTargetFunction(KeepTargetFn)
 
-    inst.components.health:SetMaxHealth(TUNING.MERM_LUNAR_HEALTH)
-    inst.components.combat:SetDefaultDamage(inst:MermDamageCalculator())
+    UpdateDamageAndHealth(inst)
+
     inst.components.combat:SetAttackPeriod(TUNING.MERM_ATTACK_PERIOD)
 
     inst:AddComponent("planardamage")
     inst.components.planardamage:SetBaseDamage(0)
 
     inst.components.talker:IgnoreAll()
-    
+
     inst.components.lootdropper:SetChanceLootTable('merm_lunar_loot')
 
     inst.updateeyebuild = updateeyebuild
@@ -1508,13 +1535,13 @@ local function lunar_mermguard_master(inst)
     inst.components.combat:SetRetargetFunction(1, RetargetFn)
     inst.components.combat:SetKeepTargetFunction(KeepTargetFn)
 
-    inst.components.health:SetMaxHealth(TUNING.MERM_LUNAR_GUARD_HEALTH)
-    inst.components.combat:SetDefaultDamage(inst:MermDamageCalculator())
+    UpdateDamageAndHealth(inst)
+
     inst.components.combat:SetAttackPeriod(TUNING.MERM_GUARD_ATTACK_PERIOD)
 
     inst:AddComponent("planardamage")
     inst.components.planardamage:SetBaseDamage(0)
-    
+
     inst.components.lootdropper:SetChanceLootTable('merm_lunar_loot')
 
     inst.updateeyebuild = updateeyebuild

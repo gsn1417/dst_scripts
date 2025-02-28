@@ -682,15 +682,6 @@ local function OnLoadPostPass(inst, newents, data)
         inst.AnimState:Show("water")
         inst:DoTaskInTime(0, function() inst.Physics:SetCapsule(ICEHOLE_PHYSICS_RADIUS, 2) end)
 
-
-        local keystonecount = 0
-
-        for i,stone in ipairs(inst.keystones) do
-            if stone then
-                keystonecount = keystonecount + 1
-            end
-        end
-
         if inst.keystones ~= nil and #inst.keystones < #KEYSTONE_POSITIONS then
             startendicetask(inst)
             inst:AddTag("notarget")
@@ -738,6 +729,12 @@ local function StartCastSpell(inst, freeze)
     inst.arms = nil
 end
 
+local function OnCrabMobLanded(inst)
+    inst:RemoveComponent("complexprojectile") -- To remove projectile tag.
+
+    inst:PushEvent("hit_ground")
+end
+
 local function LaunchCrabMob(inst, prefab)
     local pos = inst:GetPosition()
 
@@ -748,6 +745,8 @@ local function LaunchCrabMob(inst, prefab)
 
         if TheWorld.Map:IsVisualGroundAtPoint(pos.x+offset.x, 0, pos.z+offset.z) then
             local mob = inst:LaunchProjectile(pos+offset, prefab)
+
+            mob.components.complexprojectile:SetOnHit(OnCrabMobLanded)
 
             mob.components.sleeper:SetSleepTest(nil)
             mob.components.sleeper:SetWakeTest(nil)
@@ -772,6 +771,9 @@ local function LaunchCrabMob(inst, prefab)
 
             mob.components.health:SetMaxHealth(health)
             mob.components.health:SetPercent(1) -- For pushing events?
+
+            mob.sg:GoToState("flying")
+
             break
         end
     end

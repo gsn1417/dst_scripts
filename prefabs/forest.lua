@@ -22,6 +22,7 @@ local assets =
 	Asset("IMAGE", "images/colour_cubes/lunacy_regular_cc.tex"),
     Asset("IMAGE", "images/colour_cubes/purple_moon_cc.tex"),
     Asset("IMAGE", "images/colour_cubes/moonstorm_cc.tex"),
+    Asset("IMAGE", "images/colour_cubes/blackout_cc.tex"),
 
     Asset("ANIM", "anim/snow.zip"),
     Asset("ANIM", "anim/acidglob.zip"),
@@ -498,6 +499,20 @@ local prefabs =
     "rabbitking_lucky",
 
     "itemmimic_revealed",
+
+	-- Winter's Feast 2024
+    -- snowballmanager
+    "snowball_item",
+    "snowball_shatter_fx",
+
+    -- YOTS
+    "yots_worm_lantern_spawner",
+
+    -- Meta 5
+    "graveguard_ghost",
+
+    "shallow_grave",
+    "shallow_grave_player",
 }
 
 local FISH_DATA = require("prefabs/oceanfishdef")
@@ -597,6 +612,7 @@ local function master_postinit(inst)
     inst:AddComponent("retrofitforestmap_anr")
     inst:AddComponent("specialeventsetup")
     inst:AddComponent("townportalregistry")
+    inst:AddComponent("linkeditemmanager")
     inst:AddComponent("sandstorms")
     inst:AddComponent("worldmeteorshower")
     inst:AddComponent("mermkingmanager")
@@ -610,6 +626,7 @@ local function master_postinit(inst)
     if IsSpecialEventActive(SPECIAL_EVENTS.WINTERS_FEAST) then
         inst:AddComponent("gingerbreadhunter")
     end
+    inst:AddComponent("snowballmanager")
 
     inst:AddComponent("feasts")
 
@@ -643,6 +660,9 @@ local function master_postinit(inst)
     -- We don't want to auto-spawn mimics, but they might be brought up from the caves,
     -- so we might need to spawn them from existing mimics re-hiding.
     inst:AddComponent("shadowthrall_mimics")
+
+    -- Meta 5
+    inst:AddComponent("decoratedgrave_ghostmanager")
 end
 
 return MakeWorld("forest", prefabs, assets, common_postinit, master_postinit, {"forest"}, {

@@ -147,7 +147,7 @@ function self:TryToBecomeAggressive(rabbitking, player)
     local players = FindPlayersInRangeSqSortedByDistance(x, y, z, TUNING.RABBITKING_MEATCHECK_DISTANCE_SQ, true)
     for _, testplayer in ipairs(players) do
         if HasMeatInInventoryFor(testplayer) then
-            return self:BecomeAggressive(rabbitking, player)
+            return self:BecomeAggressive(rabbitking, testplayer)
         end
     end
 
@@ -287,6 +287,10 @@ function self:CreateRabbitKingForPlayer(player, pt_override, forcedstate_string,
 end
 function self:RemoveRabbitKing(rabbitking)
     rabbitking = rabbitking or self.rabbitkingdata.rabbitking
+    if not rabbitking.persists then
+        return
+    end
+
     if self.rabbitkingdata and self.rabbitkingdata.introtask ~= nil then
         self.rabbitkingdata.introtask:Cancel()
         self.rabbitkingdata.introtask = nil
