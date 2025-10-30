@@ -34,7 +34,7 @@ local events=
 			inst.sg:GoToState("attack")
 		end
 	end),
-    EventHandler("death", function(inst) inst.sg:GoToState("death") end),
+    CommonHandlers.OnDeath(),
 	EventHandler("attacked", function(inst, data)
 		if not inst.components.health:IsDead() then
 			if CommonHandlers.TryElectrocuteOnAttacked(inst, data) then
@@ -186,6 +186,11 @@ local states=
         onenter = function(inst)
             inst.SoundEmitter:PlaySound("waterlogged2/creatures/grass_gator/death")
             inst.AnimState:PlayAnimation("death")
+            local amphibiouscreature = inst.components.amphibiouscreature
+            if amphibiouscreature and amphibiouscreature.in_water then
+                inst.AnimState:PushAnimation("death_idle", true)
+            end
+
             inst.components.locomotor:StopMoving()
             inst.components.lootdropper:DropLoot(Vector3(inst.Transform:GetWorldPosition()))
 
