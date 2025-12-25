@@ -389,6 +389,8 @@ local function DropWetTool(inst, data)
             if tool.components.inventoryitem ~= nil then
                 tool.components.inventoryitem:OnDropped()
             end
+		elseif tool ~= data.weapon then
+			return
         else
             inst.components.inventory:Unequip(EQUIPSLOTS.HANDS, true)
             inst.components.inventory:DropItem(tool)
@@ -1636,6 +1638,12 @@ fns.ScreenFlash = function(inst, intensity)
     end
 end
 
+fns.SetBathingPoolCamera = function(inst, target)
+	if TheWorld.ismastersim then
+		inst.player_classified:SetBathingPoolCamera(target)
+	end
+end
+
 --------------------------------------------------------------------------
 
 fns.ApplyScale = function(inst, source, scale)
@@ -1953,6 +1961,7 @@ local function MakePlayerCharacter(name, customprefabs, customassets, common_pos
 		--
 		Asset("ANIM", "anim/player_float.zip"),
 		Asset("ANIM", "anim/player_teetering.zip"),
+		Asset("ANIM", "anim/player_hotspring.zip"),
 		--
 
         Asset("ANIM", "anim/player_slurtle_armor.zip"),
@@ -2025,7 +2034,6 @@ local function MakePlayerCharacter(name, customprefabs, customassets, common_pos
 		Asset("ANIM", "anim/player_channelcast_oh_hit.zip"),
 		Asset("ANIM", "anim/player_pushing.zip"),
         Asset("ANIM", "anim/player_drink.zip"),
-
 
         Asset("ANIM", "anim/player_sandstorm.zip"),
         Asset("ANIM", "anim/player_tiptoe.zip"),
@@ -2124,6 +2132,7 @@ local function MakePlayerCharacter(name, customprefabs, customassets, common_pos
         "ghostvision_buff",
         "elixir_player_forcefield",
 		"player_float_hop_water_fx",
+		"player_hotspring_water_fx",
 		"ocean_splash_swim1",
 		"ocean_splash_swim2",
 
@@ -2800,6 +2809,7 @@ end
         inst:AddInherentAction(ACTIONS.CHANGEIN)
 
         inst:SetStateGraph("SGwilson")
+        inst.sg.mem.nocorpse = not TheSim:HasPlayerSkeletons()
 
         RegisterMasterEventListeners(inst)
 
@@ -2818,6 +2828,7 @@ end
         inst.SnapCamera = fns.SnapCamera
         inst.ScreenFade = fns.ScreenFade
         inst.ScreenFlash = fns.ScreenFlash
+		inst.SetBathingPoolCamera = fns.SetBathingPoolCamera
         inst.YOTB_unlockskinset = fns.YOTB_unlockskinset
         inst.YOTB_issetunlocked = fns.YOTB_issetunlocked
         inst.YOTB_isskinunlocked = fns.YOTB_isskinunlocked
