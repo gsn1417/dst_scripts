@@ -174,7 +174,7 @@ fns.ClearBellOwner = function(inst)
 
     fns.RemoveName(inst)
 
-    local bell_leader = inst.components.follower:GetLeader()
+    local bell_leader = inst.components.follower.leader -- Getting leader directly special case.
     inst:RemoveEventCallback("onremove", inst._BellRemoveCallback, bell_leader)
 
     inst.components.follower:SetLeader(nil)
@@ -190,7 +190,7 @@ fns.ClearBellOwner = function(inst)
 end
 
 fns.GetBeefBellOwner = function(inst)
-    local leader = inst.components.follower:GetLeader()
+    local leader = inst.components.follower.leader -- Getting leader directly special case.
     return (leader ~= nil
         and leader.components.inventoryitem ~= nil
         and leader.components.inventoryitem:GetGrandOwner())
@@ -335,7 +335,7 @@ local function KeepTarget(inst, target)
 end
 
 local function OnNewTarget(inst, data)
-    if data ~= nil and data.target ~= nil and inst.components.follower ~= nil and data.target == inst.components.follower.leader then
+    if data ~= nil and data.target ~= nil and inst.components.follower ~= nil and data.target == inst.components.follower:GetLeader() then
         inst.components.follower:SetLeader(nil)
     end
 end
@@ -372,7 +372,7 @@ local function OnAttacked(inst, data)
 end
 
 local function GetStatus(inst, viewer)
-    local leader = inst.components.follower:GetLeader()
+    local leader = inst.components.follower.leader -- Getting leader directly special case.
     local is_holding_bell = leader ~= nil and leader.components.inventoryitem ~= nil and leader.components.inventoryitem:GetGrandOwner() == viewer
 
     if inst.components.health ~= nil and inst.components.health:IsDead() then
@@ -820,7 +820,7 @@ local function OnRiderChanged(inst, data)
 end
 
 local function PotentialRiderTest(inst, potential_rider)
-    local leader = inst.components.follower:GetLeader()
+    local leader = inst.components.follower.leader -- Getting leader directly special case.
     if leader == nil or leader.components.inventoryitem == nil then
         return true
     end
@@ -887,7 +887,7 @@ end
 
 fns.OnWritingEnded = function(inst)
     if not inst.components.writeable:IsWritten() then
-        local leader = inst.components.follower:GetLeader()
+        local leader = inst.components.follower.leader -- Getting leader directly special case.
         if leader ~= nil and leader.components.inventoryitem ~= nil then
             inst.components.follower:SetLeader(nil)
         end
@@ -897,7 +897,7 @@ end
 local WAKE_TO_FOLLOW_DISTANCE = 15
 local function ShouldWakeUp(inst)
     return DefaultWakeTest(inst)
-        or (inst.components.follower.leader ~= nil
+        or (inst.components.follower:GetLeader() ~= nil
             and not inst.components.follower:IsNearLeader(WAKE_TO_FOLLOW_DISTANCE))
 end
 
@@ -915,7 +915,7 @@ local function MountSleepTest(inst)
     return not inst.components.rideable:IsBeingRidden()
         and DefaultSleepTest(inst)
         and not inst:HasTag("hitched")
-        and (inst.components.follower.leader == nil
+        and (inst.components.follower:GetLeader() == nil
             or inst.components.follower:IsNearLeader(SLEEP_NEAR_LEADER_DISTANCE))
 end
 
@@ -1044,8 +1044,7 @@ local function PoopOnSpawned(inst, poop)
     pos.z = pos.z + (math.sin(heading_angle*DEGREES))
     poop.Transform:SetPosition(pos.x, pos.y, pos.z)
 
-    local leader = inst.components.follower:GetLeader()
-
+    local leader = inst.components.follower.leader -- Getting leader directly special case.
     if leader ~= nil and leader:HasTag("shadowbell") then
         poop.persists = false
         poop._timeovertask = poop:DoTaskInTime(TUNING.SHADOW_BEEF_BELL_POOP_DISAPPEAR_TIME, fns.OnShadowPoopTimeOver)
@@ -1054,7 +1053,7 @@ local function PoopOnSpawned(inst, poop)
 end
 
 function fns.ShouldKeepCorpse(inst)
-    local leader = inst.components.follower:GetLeader()
+    local leader = inst.components.follower.leader -- Getting leader directly special case.
 
     return
         leader ~= nil and

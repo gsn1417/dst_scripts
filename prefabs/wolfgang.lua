@@ -163,14 +163,13 @@ end
 
 local function RecalculateMightySpeed(inst)
     local skilltreeupdater = inst.components.skilltreeupdater
-    if skilltreeupdater then
-        if inst.components.mightiness:GetState() == "normal" then
-            if skilltreeupdater:IsActivated("wolfgang_normal_speed") then
-                inst.components.locomotor:SetExternalSpeedMultiplier(inst, "wolfgang_normal_speed", TUNING.SKILLS.WOLFGANG_NORMAL_SPEED)
-            end
-        else
-            inst.components.locomotor:RemoveExternalSpeedMultiplier(inst, "wolfgang_normal_speed")
-        end
+	if skilltreeupdater and
+		skilltreeupdater:IsActivated("wolfgang_normal_speed") and
+		inst.components.mightiness:GetState() == "normal"
+	then
+		inst.components.playerspeedmult:SetSpeedMult("wolfgang_normal_speed", TUNING.SKILLS.WOLFGANG_NORMAL_SPEED)
+	else
+		inst.components.playerspeedmult:RemoveSpeedMult("wolfgang_normal_speed")
     end
 end
 
@@ -191,7 +190,8 @@ local function SpecialWorkMultiplierFn(inst, action, target, tool, numworks, rec
 			(inst.components.skilltreeupdater:IsActivated("wolfgang_critwork_1") and TUNING.SKILLS.WOLFGANG_MIGHTY_WORK_CHANCE_1) or
 			TUNING.MIGHTY_WORK_CHANCE
 
-		if math.random() >= chance then
+        chance = 1 - chance -- needs to be reversed.
+        if TryLuckRoll(inst, chance, LuckFormulas.CriticalStrike) then
             if inst.player_classified ~= nil then
                 inst.player_classified.playworkcritsound:push()
             end

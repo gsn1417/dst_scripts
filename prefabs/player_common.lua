@@ -372,7 +372,7 @@ local function DropWetTool(inst, data)
     end
 
     local tool = inst.components.inventory:GetEquippedItem(EQUIPSLOTS.HANDS)
-	if tool and tool:GetIsWet() and not tool:HasTag("stickygrip") and math.random() < easing.inSine(TheWorld.state.wetness, 0, 0.15, inst.components.moisture:GetMaxMoisture()) then
+	if tool and tool:GetIsWet() and not tool:HasTag("stickygrip") and TryLuckRoll(inst, easing.inSine(TheWorld.state.wetness, 0, TUNING.PLAYER_DROP_WET_TOOL_CHANCE_MAX, inst.components.moisture:GetMaxMoisture()), LuckFormulas.DropWetTool) then
         local projectile =
             data.weapon ~= nil and
             data.projectile == nil and
@@ -389,7 +389,8 @@ local function DropWetTool(inst, data)
             if tool.components.inventoryitem ~= nil then
                 tool.components.inventoryitem:OnDropped()
             end
-		elseif tool ~= data.weapon then
+		elseif data.weapon and tool ~= data.weapon then
+			--weapon match only required for "attack" events, not "working"
 			return
         else
             inst.components.inventory:Unequip(EQUIPSLOTS.HANDS, true)
@@ -517,6 +518,7 @@ end
 local function OnActionFailed(inst, data)
     if inst.components.talker ~= nil
 		and not data.action.action.silent_fail
+        and (not data.action.action.silent_generic_fail or data.reason ~= nil)
         and (data.reason ~= nil or
             not data.action.autoequipped or
             inst.components.inventory.activeitem == nil) then
@@ -2099,6 +2101,10 @@ local function MakePlayerCharacter(name, customprefabs, customassets, common_pos
         Asset("ANIM", "anim/player_ancient_handmaid.zip"),
         Asset("ANIM", "anim/player_ancient_architect.zip"),
         Asset("ANIM", "anim/player_ancient_mason.zip"),
+
+        Asset("ANIM", "anim/player_gallop_run.zip"),
+        Asset("ANIM", "anim/player_lancecharge.zip"),
+        Asset("ANIM", "anim/player_lancejab.zip"),
     }
 
     local prefabs =
@@ -2135,6 +2141,7 @@ local function MakePlayerCharacter(name, customprefabs, customassets, common_pos
 		"player_hotspring_water_fx",
 		"ocean_splash_swim1",
 		"ocean_splash_swim2",
+        "round_puff_fx_sm",
 
         -- Player specific classified prefabs
         "player_classified",
@@ -2300,8 +2307,8 @@ local function auratest(inst, target, can_initiate)
         return false
     end
 
-    if target.components.follower and target.components.follower.leader ~= nil and
-         target.components.follower.leader:HasTag("player") then
+    if target.components.follower and target.components.follower:GetLeader() ~= nil and
+         target.components.follower:GetLeader():HasTag("player") then
         return false
     end
 
@@ -2408,6 +2415,9 @@ end
 
 		SetInstanceFunctions(inst)
 
+		inst.footstepoverridefn = ex_fns.FootstepOverrideFn
+		inst.foleyoverridefn = ex_fns.FoleyOverrideFn
+
         inst.foleysound = nil --Characters may override this in common_postinit
         inst.playercolour = DEFAULT_PLAYER_COLOUR --Default player colour used in case it doesn't get set properly
         inst.ghostenabled = GetGhostEnabled()
@@ -2436,6 +2446,17 @@ end
         inst:AddComponent("playervision")
         inst:AddComponent("areaaware")
         inst.components.areaaware:SetUpdateDist(.45)
+
+		--use for player runspeed modifiers that should be ignored when mounted
+		--e.g. character specific things:
+		--       -wx speed chip
+		--       -wormwood bloom level
+		--       -wolfgang skilltree for normal size speedup
+		--     stategraph specific things:
+		--       -wonkey running
+		--       -galloping
+		inst:AddComponent("playerspeedmult")
+		inst.components.playerspeedmult:SetSpeedMultCap(2)
 
         inst:AddComponent("attuner")
         --attuner server listeners are not registered until after "ms_playerjoined" has been pushed
@@ -2517,7 +2538,6 @@ end
             inst:ListenForEvent("localplayer._shadowportalmax", OnShadowPortalMax)
             inst:ListenForEvent("localplayer._hermit_music", OnHermitMusic)
             
-
             inst:AddComponent("hudindicatable")
             inst.components.hudindicatable:SetShouldTrackFunction(ShouldTrackfn)
         end
@@ -2531,13 +2551,10 @@ end
         inst._piratemusicstate = net_bool(inst.GUID, "player.piratemusicstate", "piratemusicstatedirty")
         inst._piratemusicstate:set(false)
         inst:ListenForEvent("piratemusicstatedirty", OnPirateMusicStateDirty)
-
         
         inst:ListenForEvent("parasiteoverlaydirty", OnParasiteOverlayDirty)
         inst:ListenForEvent("healthbarbuffsymboldirty", OnHealthbarBuffSymbolDirty)
         inst:ListenForEvent("blackoutdirty", OnBlackoutDirty)
-        
-
 
         inst.PostActivateHandshake = ex_fns.PostActivateHandshake
         inst.OnPostActivateHandshake_Client = ex_fns.OnPostActivateHandshake_Client
@@ -2547,6 +2564,7 @@ end
         inst.SynchronizeOneClientAuthoritativeSetting = ex_fns.SynchronizeOneClientAuthoritativeSetting
 
         inst.entity:SetPristine()
+
         if not TheWorld.ismastersim then
             return inst
         end
@@ -2583,6 +2601,7 @@ end
         inst.player_classified.entity:SetParent(inst.entity)
 
         inst.components.boatcannonuser:SetClassified(inst.player_classified)
+		inst.components.playerspeedmult:SetClassified(inst.player_classified)
 
         inst:ListenForEvent("death", ex_fns.OnPlayerDeath)
         if inst.ghostenabled then
@@ -2793,6 +2812,13 @@ end
 		inst.components.channelcaster:SetOnStopChannelingFn(fns.OnStopChannelCastingItem)
 
         inst:AddComponent("experiencecollector")
+
+		inst:AddComponent("joustuser")
+		inst.components.joustuser:SetOnStartJoustFn(ex_fns.OnStartJoust)
+		inst.components.joustuser:SetOnEndJoustFn(ex_fns.OnEndJoust)
+		inst.components.joustuser:SetEdgeDistance(2)
+
+        inst:AddComponent("luckuser")
 
         -------------------------------------
 
